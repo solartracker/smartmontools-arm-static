@@ -22,6 +22,7 @@ Tomatoware is a modern, self-contained ARM cross-compilation toolchain. It allow
 2. **Unpack Tomatoware**
 
    ```bash
+   mkdir -p tomatoware-5.0
    tar -xzf arm-soft-mmc.tgz -C tomatoware-5.0
    ```
 
