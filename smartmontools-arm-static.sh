@@ -75,7 +75,7 @@ TOMATOWARE_DIR=tomatoware-5.0
 TOMATOWARE_PATH=$HOME/$TOMATOWARE_DIR
 TOMATOWARE_SYSROOT=/mmc # do not change this, unless you've customized and rebuilt Tomatoware from source code
 
-# Check if Tomatoware directory exists, and install Tomatoware if needed
+# Check if Tomatoware exists and install it, if needed
 if [ ! -d "$TOMATOWARE_PATH" ]; then
     echo "Tomatoware not found at $TOMATOWARE_PATH. Installing..."
     echo ""
