@@ -63,17 +63,17 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 ################################################################################
-PATH_CMD="$(readlink -f $0)"
+PATH_CMD="$(readlink -f "$0")"
 set -e
 set -x
 
 # Install the build environment, if it is not already installed
 
-TOMATOWARE_URL=https://github.com/lancethepants/tomatoware/releases/download/v5.0/arm-soft-mmc.tgz
-TOMATOWARE_PKG=arm-soft-mmc-5.0.tgz
-TOMATOWARE_DIR=tomatoware-5.0
-TOMATOWARE_PATH=$HOME/$TOMATOWARE_DIR
-TOMATOWARE_SYSROOT=/mmc # do not change this, unless you've customized and rebuilt Tomatoware from source code
+TOMATOWARE_URL="https://github.com/lancethepants/tomatoware/releases/download/v5.0/arm-soft-mmc.tgz"
+TOMATOWARE_PKG="arm-soft-mmc-5.0.tgz"
+TOMATOWARE_DIR="tomatoware-5.0"
+TOMATOWARE_PATH="$HOME/$TOMATOWARE_DIR"
+TOMATOWARE_SYSROOT="/mmc" # do not change this, unless you've customized and rebuilt Tomatoware from source code
 
 # Check if Tomatoware exists and install it, if needed
 if [ ! -d "$TOMATOWARE_PATH" ]; then
@@ -87,13 +87,9 @@ if [ ! -d "$TOMATOWARE_PATH" ]; then
                 rm -fv "$PKG_TMP"
             fi
         ' EXIT INT TERM
-        if ! wget -O $PKG_TMP $TOMATOWARE_URL; then
-            rm -fv $PKG_TMP
-            exit 1
-        else
-            mv -v $PKG_TMP $TOMATOWARE_PKG
-            trap - EXIT INT TERM
-        fi
+        wget -O "$PKG_TMP" "$TOMATOWARE_URL"
+        mv -fv "$PKG_TMP" "$TOMATOWARE_PKG"
+        trap - EXIT INT TERM
     fi
     DIR_TMP=$(mktemp -d "$TOMATOWARE_DIR.XXXXXX")
     trap '
@@ -101,25 +97,21 @@ if [ ! -d "$TOMATOWARE_PATH" ]; then
             rm -rfv "$DIR_TMP"
         fi
     ' EXIT INT TERM
-    mkdir -p $DIR_TMP
-    if ! tar xzfv $TOMATOWARE_PKG -C $DIR_TMP; then
-        rm -rfv $DIR_TMP
-        exit 1
-    else
-        mv -v $DIR_TMP $TOMATOWARE_DIR
-        trap - EXIT INT TERM
-    fi
+    mkdir -pv "$DIR_TMP"
+    tar xzfv "$TOMATOWARE_PKG" -C "$DIR_TMP"
+    mv -fv "$DIR_TMP" "$TOMATOWARE_DIR"
+    trap - EXIT INT TERM
 fi
 
 # Check if /mmc exists and is a symbolic link
-if [ ! -L $TOMATOWARE_SYSROOT ]; then
+if [ ! -L "$TOMATOWARE_SYSROOT" ]; then
     echo "Tomatoware $TOMATOWARE_SYSROOT is missing or is not a symbolic link."
     echo ""
-    sudo ln -sfnv $TOMATOWARE_PATH $TOMATOWARE_SYSROOT
+    sudo ln -sfnv "$TOMATOWARE_PATH" "$TOMATOWARE_SYSROOT"
 fi
 
 # Check for required Tomatoware tools
-if [ ! -x $TOMATOWARE_SYSROOT/bin/gcc ] || [ ! -x $TOMATOWARE_SYSROOT/bin/make ]; then
+if [ ! -x "$TOMATOWARE_SYSROOT/bin/gcc" ] || [ ! -x "$TOMATOWARE_SYSROOT/bin/make" ]; then
     echo "ERROR: Tomatoware installation appears incomplete."
     echo "Missing gcc or make in $TOMATOWARE_SYSROOT/bin."
     echo ""
@@ -129,7 +121,7 @@ fi
 # If not already running under Tomatoware bash, re-exec ourselves
 if [ -z "$TOMATOWARE_SHELL" ]; then
     export TOMATOWARE_SHELL=1
-    exec $TOMATOWARE_SYSROOT/bin/bash "$PATH_CMD" "$@"
+    exec "$TOMATOWARE_SYSROOT/bin/bash" "$PATH_CMD" "$@"
 fi
 
 # ---- From here down, you are running under /mmc/bin/bash ----
@@ -140,10 +132,10 @@ echo "Now running under: $BASH"
 
 PKG_ROOT=smartmontools
 REBUILD_ALL=1
-SRC=$TOMATOWARE_SYSROOT/src/$PKG_ROOT
-mkdir -pv $SRC
+SRC="$TOMATOWARE_SYSROOT/src/$PKG_ROOT"
+mkdir -pv "$SRC"
 MAKE="make -j`nproc`"
-PATH=$TOMATOWARE_SYSROOT/usr/bin:$TOMATOWARE_SYSROOT/usr/local/sbin:$TOMATOWARE_SYSROOT/usr/local/bin:$TOMATOWARE_SYSROOT/usr/sbin:$TOMATOWARE_SYSROOT/usr/bin:$TOMATOWARE_SYSROOT/sbin:$TOMATOWARE_SYSROOT/bin
+PATH="$TOMATOWARE_SYSROOT/usr/bin:$TOMATOWARE_SYSROOT/usr/local/sbin:$TOMATOWARE_SYSROOT/usr/local/bin:$TOMATOWARE_SYSROOT/usr/sbin:$TOMATOWARE_SYSROOT/sbin:$TOMATOWARE_SYSROOT/bin"
 
 ################################################################################
 # smartmontools-7.5
@@ -156,26 +148,26 @@ URL="https://github.com/smartmontools/smartmontools/releases/download/RELEASE_7_
 
 if [ "$REBUILD_ALL" == "1" ]; then
     if [ -f "$FOLDER/Makefile" ]; then
-        cd $FOLDER && make uninstall && cd ..
+        cd "$FOLDER" && make uninstall && cd ..
     fi || true
     rm -rfv "$FOLDER"
 fi || true
 
 if [ ! -f "$FOLDER/__package_installed" ]; then
-    [ ! -f "$DL" ] && wget $URL
-    [ ! -d "$FOLDER" ] && tar xvzf $DL
-    cd $FOLDER
+    [ ! -f "$DL" ] && wget "$URL"
+    [ ! -d "$FOLDER" ] && tar xvzf "$DL"
+    cd "$FOLDER"
 
     PKG_CONFIG_PATH="$TOMATOWARE_SYSROOT/lib/pkgconfig" \
-        ./configure LDFLAGS="-static" --prefix=$TOMATOWARE_SYSROOT
+        ./configure LDFLAGS="-static" --prefix="$TOMATOWARE_SYSROOT"
 
     $MAKE
     make install
 
     # Stripping removes debug symbols and other metadata, shrinking the size by roughly 80%.
     # The executable programs will still be quite large because of static linking.
-    [ -f $TOMATOWARE_SYSROOT/sbin/smartctl ] && strip $TOMATOWARE_SYSROOT/sbin/smartctl
-    [ -f $TOMATOWARE_SYSROOT/sbin/smartd ] && strip $TOMATOWARE_SYSROOT/sbin/smartd
+    [ -f "$TOMATOWARE_SYSROOT/sbin/smartctl" ] && strip "$TOMATOWARE_SYSROOT/sbin/smartctl"
+    [ -f "$TOMATOWARE_SYSROOT/sbin/smartd" ] && strip "$TOMATOWARE_SYSROOT/sbin/smartd"
 
     touch __package_installed
 fi
