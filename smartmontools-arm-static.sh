@@ -28,8 +28,8 @@
 #   - The host system remains untouched, preventing potential conflicts
 #     or accidental overwrites during compilation.
 #
-# My specific purposes with this script is to build smartmontools from source
-# code and run it on the RT-AC68U home router, which uses ARMv7 Linux 2.6.
+# My specific purposes for this script is to build smartmontools from source
+# code and run it on the RT-AC68U router, which uses ARMv7 Linux 2.6.
 # The resulting smartctl and smartd programs are:
 #   - Statically linked, requiring no external libraries on the RT-AC68U router.
 #   - Self-contained, including drivedb.h and example scripts, all under /mmc.
@@ -94,8 +94,9 @@ fi
 ################################################################################
 # General
 
+PKG_ROOT=smartmontools
 REBUILD_ALL=1
-SRC=$TOMATOWARE_SYSROOT/src/smartmontools
+SRC=$TOMATOWARE_SYSROOT/src/$PKG_ROOT
 mkdir -p $SRC
 MAKE="make -j`nproc`"
 PATH=$TOMATOWARE_SYSROOT/usr/bin:$TOMATOWARE_SYSROOT/usr/local/sbin:$TOMATOWARE_SYSROOT/usr/local/bin:$TOMATOWARE_SYSROOT/usr/sbin:$TOMATOWARE_SYSROOT/usr/bin:$TOMATOWARE_SYSROOT/sbin:$TOMATOWARE_SYSROOT/bin
@@ -103,7 +104,8 @@ PATH=$TOMATOWARE_SYSROOT/usr/bin:$TOMATOWARE_SYSROOT/usr/local/sbin:$TOMATOWARE_
 ################################################################################
 # smartmontools-7.5
 
-mkdir -pv "$SRC/smartmontools" && cd "$SRC/smartmontools"
+PKG_MAIN=smartmontools
+mkdir -pv "$SRC/$PKG_MAIN" && cd "$SRC/$PKG_MAIN"
 DL="smartmontools-7.5.tar.gz"
 FOLDER="${DL%.tar.gz*}"
 URL="https://github.com/smartmontools/smartmontools/releases/download/RELEASE_7_5/$DL"
