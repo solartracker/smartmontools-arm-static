@@ -1,19 +1,24 @@
 #!/bin/bash
 ################################################################################
-# Raspberry Pi build script for:
-# smartmontools
+# smartmontools-arm-static.sh
 #
-# This script downloads and compiles all packages needed for adding
-# HDD SMART querying capabilities to any ARMv7 Linux device. All you do is
-# run the script and copy the resulting executable program to the target
-# device.
+# Raspberry Pi build script for Smartmontools
+#
+# The smartmontools package contains two utility programs (smartctl and smartd)
+# to control and monitor storage systems using the Self-Monitoring, Analysis and
+# Reporting Technology System (SMART) built into most modern ATA/SATA, SCSI/SAS
+# and NVMe disks. In many cases, these utilities will provide advanced warning
+# of disk degradation and failure.
+#
+# This script downloads and compiles all packages needed for adding these
+# capabilities to any ARMv7 Linux device. All you do is run the script and copy
+# the resulting executable program to the target device.
 #
 # The resulting executable program is statically linked and entirely 
 # self-contained, there are no external libraries needed on the target
 # device.
 #
 # This script uses the Tomatoware environment.
-# It is a simple example for how to do this sort of thing.
 #
 # Tomatoware is a modern, cross-compilation and build environment for ARM-based
 # devices.  It provides a complete, self-contained toolchain under the /mmc
@@ -28,8 +33,10 @@
 #   - The host system remains untouched, preventing potential conflicts
 #     or accidental overwrites during compilation.
 #
-# My specific purposes for this script is to build smartmontools from source
-# code and run it on the RT-AC68U router, which uses ARMv7 Linux 2.6.
+# My specific purposes for this script are to build Smartmontools from source
+# code and run it on the RT-AC68U router, which uses ARMv7 Linux 2.6. It is a
+# simple example for how to do this sort of thing.
+#
 # The resulting smartctl and smartd programs are:
 #   - Statically linked, requiring no external libraries on the RT-AC68U router.
 #   - Self-contained, including drivedb.h and example scripts, all under /mmc.
@@ -60,13 +67,15 @@ PATH_CMD="$(readlink -f $0)"
 set -e
 set -x
 
+# Install the build environment, if it is not already installed
+
 TOMATOWARE_URL=https://github.com/lancethepants/tomatoware/releases/download/v5.0/arm-soft-mmc.tgz
 TOMATOWARE_PKG=arm-soft-mmc-5.0.tgz
 TOMATOWARE_DIR=tomatoware-5.0
 TOMATOWARE_PATH=$HOME/$TOMATOWARE_DIR
 TOMATOWARE_SYSROOT=/mmc # do not change this, unless you've customized and rebuilt Tomatoware from source code
 
-# Check if Tomatoware directory exists
+# Check if Tomatoware directory exists, and install Tomatoware if needed
 if [ ! -d "$TOMATOWARE_PATH" ]; then
     echo "Tomatoware not found at $TOMATOWARE_PATH. Installing..."
     echo ""
