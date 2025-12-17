@@ -1,20 +1,23 @@
 #!/mmc/bin/bash
-#############################################################################
+################################################################################
 # Raspberry Pi build script for:
 # smartmontools
 #
 # This script downloads and compiles all packages needed for adding
-# HDD SMART querying capabilities to any ARMv7 device. All you do is run the
-# script and copy the resulting executable program to the target platform.
+# HDD SMART querying capabilities to any ARMv7 Linux device. All you do is
+# run the script and copy the resulting executable program to the target
+# device.
 #
 # The resulting executable program is statically linked and entirely 
-# self-contained, there are no external libraries needed on the target platform.
+# self-contained, there are no external libraries needed on the target
+# device.
 #
 # This script uses the Tomatoware environment.
+# It is a simple example for how to do this sort of thing.
 #
-# Tomatoware is a modern, cross-compilation and build environment for ARM-based devices.
-# It provides a complete, self-contained toolchain under the /mmc directory,
-# including up-to-date compilers, libraries, and build utilities.  
+# Tomatoware is a modern, cross-compilation and build environment for ARM-based
+# devices.  It provides a complete, self-contained toolchain under the /mmc
+# directory, including up-to-date compilers, libraries, and build utilities.
 # With Tomatoware, you can compile the latest versions of open-source packages 
 # for ARMv7 and other older ARM platforms that would otherwise be stuck using
 # outdated toolchains.
@@ -25,10 +28,12 @@
 #   - The host system remains untouched, preventing potential conflicts
 #     or accidental overwrites during compilation.
 #
+# My specific purposes with this script is to build smartmontools from source
+# code and run it on the RT-AC68U home router, which uses ARMv7 Linux 2.6.
 # The resulting smartctl and smartd programs are:
-#   - Statically linked, requiring no external libraries on the target device.
+#   - Statically linked, requiring no external libraries on the RT-AC68U router.
 #   - Self-contained, including drivedb.h and example scripts, all under /mmc.
-#   - Ready to be copied to the target platform without any host system dependency.
+#   - Ready to be copied to the RT-AC68U router without any host system dependency.
 #
 # Using Tomatoware and /mmc as the build root makes it easy to maintain
 # multiple toolchains or versions and isolate them from the host environment.
@@ -50,9 +55,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-#############################################################################
-# Check if Tomatoware directory exists
+################################################################################
 
+# Check if Tomatoware directory exists
 if [ ! -d "$HOME/tomatoware-5.0" ]; then
     echo "ERROR: Tomatoware not found at $HOME/tomatoware-5.0"
     echo ""
@@ -86,7 +91,7 @@ if [ ! -x /mmc/bin/gcc ] || [ ! -x /mmc/bin/make ]; then
     exit 1
 fi
 
-#############################################################################
+################################################################################
 # Setup
 
 PATH_CMD="$(readlink -f $0)"
@@ -99,23 +104,28 @@ mkdir -p $SRC
 MAKE="make -j`nproc`"
 PATH=/mmc/usr/bin:/mmc/usr/local/sbin:/mmc/usr/local/bin:/mmc/usr/sbin:/mmc/usr/bin:/mmc/sbin:/mmc/bin
 
-#############################################################################
+################################################################################
 # smartmontools-7.5
 
-mkdir -p "$SRC/smartmontools" && cd "$SRC/smartmontools"
+mkdir -pv "$SRC/smartmontools" && cd "$SRC/smartmontools"
 DL="smartmontools-7.5.tar.gz"
 FOLDER="${DL%.tar.gz*}"
 URL="https://github.com/smartmontools/smartmontools/releases/download/RELEASE_7_5/$DL"
-[ "$REBUILD_ALL" == "1" ] && rm -rf "$FOLDER"
+
+if [ "$REBUILD_ALL" == "1" ]; then
+    if [ -f "$FOLDER/Makefile" ]; then
+        cd $FOLDER && make uninstall && cd ..
+    fi || true
+    rm -rfv "$FOLDER"
+fi || true
+
 if [ ! -f "$FOLDER/__package_installed" ]; then
     [ ! -f "$DL" ] && wget $URL
     [ ! -d "$FOLDER" ] && tar xvzf $DL
     cd $FOLDER
 
     PKG_CONFIG_PATH="/mmc/lib/pkgconfig" \
-    ./configure \
-    LDFLAGS="-static" \
-    --prefix=/mmc
+        ./configure LDFLAGS="-static" --prefix=/mmc
 
     $MAKE
     make install
