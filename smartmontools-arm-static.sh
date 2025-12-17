@@ -51,23 +51,44 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 #############################################################################
+# Check if Tomatoware directory exists
 
-# Check if Tomatoware environment exists
-if [ ! -d /mmc ]; then
-    echo "ERROR: Tomatoware not found. Please unpack or create a symbolic link to Tomatoware at /mmc."
-    echo "https://github.com/lancethepants/tomatoware/releases"
+if [ ! -d "$HOME/tomatoware-5.0" ]; then
+    echo "ERROR: Tomatoware not found at $HOME/tomatoware-5.0"
+    echo ""
+    echo "Please install Tomatoware as follows:"
+    echo ""
+    echo "  cd ~"
+    echo "  wget https://github.com/lancethepants/tomatoware/releases/download/v5.0/arm-soft-mmc.tgz"
+    echo "  mkdir -p tomatoware-5.0"
+    echo "  tar -xzf arm-soft-mmc.tgz -C tomatoware-5.0"
+    echo ""
     exit 1
 fi
 
-# Optional: check if the compiler binaries exist inside /mmc
+# Check if /mmc exists and is a symbolic link
+if [ ! -L /mmc ]; then
+    echo "ERROR: /mmc is missing or is not a symbolic link."
+    echo ""
+    echo "Tomatoware must be available at /mmc."
+    echo "Create the symbolic link as follows:"
+    echo ""
+    echo "  sudo ln -sfn \$HOME/tomatoware-5.0 /mmc"
+    echo ""
+    exit 1
+fi
+
+# Check for required Tomatoware tools
 if [ ! -x /mmc/bin/gcc ] || [ ! -x /mmc/bin/make ]; then
-    echo "ERROR: Tomatoware incomplete: missing gcc or make in /mmc/bin."
+    echo "ERROR: Tomatoware installation appears incomplete."
+    echo "Missing gcc or make in /mmc/bin."
+    echo ""
     exit 1
 fi
 
 #############################################################################
-
 # Setup
+
 PATH_CMD="$(readlink -f $0)"
 set -e
 set -x
@@ -78,10 +99,8 @@ mkdir -p $SRC
 MAKE="make -j`nproc`"
 PATH=/mmc/usr/bin:/mmc/usr/local/sbin:/mmc/usr/local/bin:/mmc/usr/sbin:/mmc/usr/bin:/mmc/sbin:/mmc/bin
 
-
 #############################################################################
 # smartmontools-7.5
-#############################################################################
 
 mkdir -p "$SRC/smartmontools" && cd "$SRC/smartmontools"
 DL="smartmontools-7.5.tar.gz"
