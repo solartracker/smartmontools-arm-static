@@ -56,14 +56,9 @@ Tomatoware is a modern, self-contained ARM cross-compilation toolchain. It allow
 
 ## Notes
 
+- Executable program is located here: `/mmc/sbin/smartctl`.  Copy it to your target platform.
 - The `/mmc` environment is isolated. Nothing is installed on the host system, preventing conflicts with existing libraries or programs.  
-- The resulting binaries are **fully self-contained** and do not rely on the target system's libraries.  
+- Resulting binaries are **fully self-contained** and do not rely on the target system's libraries.  
 - Optional: You can update or customize Tomatoware to add packages or new compiler versions, but it is not necessary for building smartmontools.  
 - Example scripts and configuration files are included in `/mmc/share/smartmontools` and `/mmc/etc`.
-
----
-
-## License
-
-This project is licensed under the GNU General Public License (GPL) v3 or later. See [LICENSE](./LICENSE) for details.
 
