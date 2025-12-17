@@ -1,4 +1,4 @@
-#!/mmc/bin/bash
+#!/bin/bash
 ################################################################################
 # Raspberry Pi build script for:
 # smartmontools
@@ -68,12 +68,38 @@ TOMATOWARE_SYSROOT=/mmc # do not change this, unless you've customized and rebui
 
 # Check if Tomatoware directory exists
 if [ ! -d "$TOMATOWARE_PATH" ]; then
-    echo "Tomatoware not found at $TOMATOWARE_PATH"
+    echo "Tomatoware not found at $TOMATOWARE_PATH. Installing..."
     echo ""
     cd
-    [ ! -f "$TOMATOWARE_PKG" ] && wget -O $TOMATOWARE_PKG $TOMATOWARE_URL
-    mkdir -p $TOMATOWARE_DIR
-    tar -xzfv $TOMATOWARE_PKG -C $TOMATOWARE_DIR
+    if [ ! -f "$TOMATOWARE_PKG" ]; then
+        PKG_TMP=$(mktemp "$TOMATOWARE_PKG.XXXXXX")
+        trap '
+            if [ -n "${PKG_TMP:-}" ]; then
+                rm -fv "$PKG_TMP"
+            fi
+        ' EXIT INT TERM
+        if ! wget -O $PKG_TMP $TOMATOWARE_URL; then
+            rm -fv $PKG_TMP
+            exit 1
+        else
+            mv -v $PKG_TMP $TOMATOWARE_PKG
+            trap - EXIT INT TERM
+        fi
+    fi
+    DIR_TMP=$(mktemp -d "$TOMATOWARE_DIR.XXXXXX")
+    trap '
+        if [ -n "${DIR_TMP:-}" ]; then
+            rm -rfv "$DIR_TMP"
+        fi
+    ' EXIT INT TERM
+    mkdir -p $DIR_TMP
+    if ! tar xzfv $TOMATOWARE_PKG -C $DIR_TMP; then
+        rm -rfv $DIR_TMP
+        exit 1
+    else
+        mv -v $DIR_TMP $TOMATOWARE_DIR
+        trap - EXIT INT TERM
+    fi
 fi
 
 # Check if /mmc exists and is a symbolic link
@@ -91,13 +117,22 @@ if [ ! -x $TOMATOWARE_SYSROOT/bin/gcc ] || [ ! -x $TOMATOWARE_SYSROOT/bin/make ]
     exit 1
 fi
 
+# If not already running under Tomatoware bash, re-exec ourselves
+if [ -z "$TOMATOWARE_SHELL" ]; then
+    export TOMATOWARE_SHELL=1
+    exec $TOMATOWARE_SYSROOT/bin/bash "$PATH_CMD" "$@"
+fi
+
+# ---- From here down, you are running under /mmc/bin/bash ----
+echo "Now running under: $BASH"
+
 ################################################################################
 # General
 
 PKG_ROOT=smartmontools
 REBUILD_ALL=1
 SRC=$TOMATOWARE_SYSROOT/src/$PKG_ROOT
-mkdir -p $SRC
+mkdir -pv $SRC
 MAKE="make -j`nproc`"
 PATH=$TOMATOWARE_SYSROOT/usr/bin:$TOMATOWARE_SYSROOT/usr/local/sbin:$TOMATOWARE_SYSROOT/usr/local/bin:$TOMATOWARE_SYSROOT/usr/sbin:$TOMATOWARE_SYSROOT/usr/bin:$TOMATOWARE_SYSROOT/sbin:$TOMATOWARE_SYSROOT/bin
 
@@ -119,7 +154,7 @@ fi || true
 
 if [ ! -f "$FOLDER/__package_installed" ]; then
     [ ! -f "$DL" ] && wget $URL
-    [ ! -d "$FOLDER" ] && tar -xvzf $DL
+    [ ! -d "$FOLDER" ] && tar xvzf $DL
     cd $FOLDER
 
     PKG_CONFIG_PATH="$TOMATOWARE_SYSROOT/lib/pkgconfig" \
