@@ -31,7 +31,7 @@ Tomatoware is a modern, self-contained ARM cross-compilation toolchain. It allow
 3. **Create a symbolic link for convenience**
 
    ```bash
-   ln -sfn $HOME/tomatoware-5.0 /mmc
+   sudo ln -sfn $HOME/tomatoware-5.0 /mmc
    ```
 
    All scripts and build commands will use `/mmc` as the root of the Tomatoware environment.
