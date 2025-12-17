@@ -50,13 +50,13 @@ Tomatoware is a modern, self-contained ARM cross-compilation toolchain. It allow
    ./smartmontools-arm-static.sh
    ```
 
-   This will build `smartctl` and `smartd` as **statically linked binaries** under `/mmc/sbin`. You can copy these binaries directly to your ARM target.
+   This will build `smartctl` and `smartd` as **statically linked binaries** under `/mmc/sbin`. You can copy these binaries directly to your ARM target device.
 
 ---
 
 ## Notes
 
-- Executable program is located here: `/mmc/sbin/smartctl`.  Copy it to your target platform.
+- The executable program is located here: `/mmc/sbin/smartctl`.  Copy it to your target device.
 - The `/mmc` environment is isolated. Nothing is installed on the host system, preventing conflicts with existing libraries or programs.  
 - Resulting binaries are **fully self-contained** and do not rely on the target system's libraries.  
 - Optional: You can update or customize Tomatoware to add packages or new compiler versions, but it is not necessary for building smartmontools.  
