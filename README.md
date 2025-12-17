@@ -10,15 +10,6 @@ Tomatoware is a modern, self-contained ARM cross-compilation toolchain. It allow
 
 ---
 
-## Prerequisites
-
-- A Linux or macOS host system (Raspberry Pi recommended but not required)  
-- Internet access to download Tomatoware  
-- Git installed to clone this repository  
-- Basic shell knowledge  
-
----
-
 ## Setup Instructions
 
 1. **Download Tomatoware binaries**
