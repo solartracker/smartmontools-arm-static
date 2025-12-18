@@ -126,7 +126,8 @@ fi
 
 # Check shell
 if [ "$BASH" != "$TOMATOWARE_SYSROOT/bin/bash" ]; then
-    echo "ERROR: Not Tomatoware Bash $TOMATOWARE_SYSROOT/bin/bash"
+    echo "ERROR: Not Tomatoware shell: $BASH"
+    echo ""
     exit 1
 fi
 
