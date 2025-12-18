@@ -6,7 +6,7 @@ This repository contains a build script (`smartmontools-arm-static.sh`) for comp
 
 ## What is Smartmontools?
 
-Smartmontools is a set of utility programs to control and monitor computer storage systems using the Self-Monitoring, Analysis and Reporting Technology system built into most modernATA, Serial ATA, SCSI/SAS and NVMe hard drives.
+Smartmontools is a set of utility programs to control and monitor computer storage systems using the Self-Monitoring, Analysis and Reporting Technology system built into most modern ATA, Serial ATA, SCSI/SAS and NVMe hard drives.
 
 ## What is Tomatoware?
 
