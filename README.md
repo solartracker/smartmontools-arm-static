@@ -1,6 +1,6 @@
 # Build Instructions
 
-This repository contains a build script (`smartmontools-arm-static.sh`) for compiling **smartmontools** as statically linked executables for ARMv7 devices using **Tomatoware**.
+This repository contains a build script (`smartmontools-arm-static.sh`) for compiling **smartmontools** as a statically linked executable for ARMv7 Linux devices.
 
 ---
 
