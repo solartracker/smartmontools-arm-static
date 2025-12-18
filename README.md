@@ -23,7 +23,7 @@ Tomatoware is a modern, self-contained ARM cross-compilation toolchain. It allow
 
    ```bash
    mkdir -p tomatoware-5.0
-   tar -xzf arm-soft-mmc.tgz -C tomatoware-5.0
+   tar xzfv arm-soft-mmc.tgz -C tomatoware-5.0
    ```
 
    This creates `$HOME/tomatoware-5.0`.
