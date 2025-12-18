@@ -124,6 +124,12 @@ if [ -z "$TOMATOWARE_SHELL" ]; then
     exec "$TOMATOWARE_SYSROOT/bin/bash" "$PATH_CMD" "$@"
 fi
 
+# Check shell
+if [ "$BASH" != "$TOMATOWARE_SYSROOT/bin/bash" ]; then
+    echo "ERROR: Not Tomatoware Bash $TOMATOWARE_SYSROOT/bin/bash"
+    exit 1
+fi
+
 # ---- From here down, you are running under /mmc/bin/bash ----
 echo "Now running under: $BASH"
 
