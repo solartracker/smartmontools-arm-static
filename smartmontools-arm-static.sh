@@ -74,7 +74,7 @@ set -x
 TOMATOWARE_URL="https://github.com/lancethepants/tomatoware/releases/download/v5.0/arm-soft-mmc.tgz"
 TOMATOWARE_PKG="arm-soft-mmc-5.0.tgz"
 TOMATOWARE_DIR="tomatoware-5.0"
-TOMATOWARE_PATH="$PARENT/$TOMATOWARE_DIR"
+TOMATOWARE_PATH="$PARENT_DIR/$TOMATOWARE_DIR"
 TOMATOWARE_SYSROOT="/mmc" # do not change this, unless you've customized and rebuilt Tomatoware from source code
 
 # Check if Tomatoware exists and install it, if needed
@@ -100,7 +100,7 @@ if [ ! -d "$TOMATOWARE_PATH" ]; then
         fi
     ' EXIT INT TERM
     mkdir -pv "$DIR_TMP"
-    tar xzfv "$TOMATOWARE_PKG" -C "$DIR_TMP"
+    tar xzvf "$TOMATOWARE_PKG" -C "$DIR_TMP"
     mv -fv "$DIR_TMP" "$TOMATOWARE_DIR"
     trap - EXIT INT TERM
 fi
@@ -120,21 +120,20 @@ if [ ! -x "$TOMATOWARE_SYSROOT/bin/gcc" ] || [ ! -x "$TOMATOWARE_SYSROOT/bin/mak
     exit 1
 fi
 
-# If not already running under Tomatoware bash, re-exec ourselves
-if [ -z "$TOMATOWARE_SHELL" ]; then
-    export TOMATOWARE_SHELL=1
-    exec "$TOMATOWARE_SYSROOT/bin/bash" "$PATH_CMD" "$@"
-fi
-
 # Check shell
-if [ "$SHELL" != "$TOMATOWARE_SYSROOT/bin/bash" ]; then
-    echo "ERROR: Not Tomatoware shell: $SHELL"
-    echo ""
-    exit 1
+if [ "$BASH" != "$TOMATOWARE_SYSROOT/bin/bash" ]; then
+    if [ -z "$TOMATOWARE_SHELL" ]; then
+        export TOMATOWARE_SHELL=1
+        exec "$TOMATOWARE_SYSROOT/bin/bash" "$PATH_CMD" "$@"
+    else
+        echo "ERROR: Not Tomatoware shell: $(readlink /proc/$$/exe)"
+        echo ""
+        exit 1
+    fi
 fi
 
 # ---- From here down, you are running under /mmc/bin/bash ----
-echo "Now running under: $SHELL"
+echo "Now running under: $(readlink /proc/$$/exe)"
 
 ################################################################################
 # General
@@ -164,7 +163,7 @@ fi || true
 
 if [ ! -f "$FOLDER/__package_installed" ]; then
     [ ! -f "$DL" ] && wget "$URL"
-    [ ! -d "$FOLDER" ] && tar xvzf "$DL"
+    [ ! -d "$FOLDER" ] && tar xzvf "$DL"
     cd "$FOLDER"
 
     PKG_CONFIG_PATH="$TOMATOWARE_SYSROOT/lib/pkgconfig" \
