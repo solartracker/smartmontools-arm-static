@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 ################################################################################
 # smartmontools-arm-static.sh
 #
@@ -63,7 +63,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 ################################################################################
-PATH_CMD="$(readlink -f "$0")"
+PATH_CMD="$(readlink -f -- "$0")"
+SCRIPT_DIR="$(dirname -- "$(readlink -f -- "$0")")"
+PARENT_DIR="$(dirname -- "$(dirname -- "$(readlink -f -- "$0")")")"
 set -e
 set -x
 
@@ -72,14 +74,14 @@ set -x
 TOMATOWARE_URL="https://github.com/lancethepants/tomatoware/releases/download/v5.0/arm-soft-mmc.tgz"
 TOMATOWARE_PKG="arm-soft-mmc-5.0.tgz"
 TOMATOWARE_DIR="tomatoware-5.0"
-TOMATOWARE_PATH="$HOME/$TOMATOWARE_DIR"
+TOMATOWARE_PATH="$PARENT/$TOMATOWARE_DIR"
 TOMATOWARE_SYSROOT="/mmc" # do not change this, unless you've customized and rebuilt Tomatoware from source code
 
 # Check if Tomatoware exists and install it, if needed
 if [ ! -d "$TOMATOWARE_PATH" ]; then
     echo "Tomatoware not found at $TOMATOWARE_PATH. Installing..."
     echo ""
-    cd
+    cd $PARENT_DIR
     if [ ! -f "$TOMATOWARE_PKG" ]; then
         PKG_TMP=$(mktemp "$TOMATOWARE_PKG.XXXXXX")
         trap '
@@ -125,14 +127,14 @@ if [ -z "$TOMATOWARE_SHELL" ]; then
 fi
 
 # Check shell
-if [ "$BASH" != "$TOMATOWARE_SYSROOT/bin/bash" ]; then
-    echo "ERROR: Not Tomatoware shell: $BASH"
+if [ "$SHELL" != "$TOMATOWARE_SYSROOT/bin/bash" ]; then
+    echo "ERROR: Not Tomatoware shell: $SHELL"
     echo ""
     exit 1
 fi
 
 # ---- From here down, you are running under /mmc/bin/bash ----
-echo "Now running under: $BASH"
+echo "Now running under: $SHELL"
 
 ################################################################################
 # General
