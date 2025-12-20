@@ -69,6 +69,32 @@ PARENT_DIR="$(dirname -- "$(dirname -- "$(readlink -f -- "$0")")")"
 set -e
 set -x
 
+################################################################################
+# Checksum verification for downloaded file
+
+check_sha256() {
+    file="$1"
+    expected="$2"
+
+    if [ ! -f "$file" ]; then
+        echo "ERROR: File not found: $file"
+        return 1
+    fi
+
+    actual="$(sha256sum "$file" | awk '{print $1}')"
+
+    if [ "$actual" != "$expected" ]; then
+        echo "ERROR: SHA256 mismatch for $file"
+        echo "Expected: $expected"
+        echo "Actual:   $actual"
+        return 1
+    fi
+
+    echo "SHA256 OK: $file"
+    return 0
+}
+
+################################################################################
 # Install the build environment, if it is not already installed
 
 TOMATOWARE_URL="https://github.com/lancethepants/tomatoware/releases/download/v5.0/arm-soft-mmc.tgz"
@@ -95,14 +121,7 @@ if [ ! -d "$TOMATOWARE_PATH" ]; then
         trap - EXIT INT TERM
     fi
 
-    EXPECTED_SHA256=$TOMATOWARE_SHA256
-    ACTUAL_SHA256=$(sha256sum "$TOMATOWARE_PKG" | awk '{print $1}')
-    if [ "$ACTUAL_SHA256" != "$EXPECTED_SHA256" ]; then
-        echo "ERROR: SHA256 mismatch for $TOMATOWARE_PKG"
-        echo "Expected: $EXPECTED_SHA256"
-        echo "Actual:   $ACTUAL_SHA256"
-        exit 1
-    fi
+    check_sha256 "$TOMATOWARE_PKG" "$TOMATOWARE_SHA256"
 
     DIR_TMP=$(mktemp -d "$TOMATOWARE_DIR.XXXXXX")
     trap '
@@ -170,7 +189,7 @@ PATH="$TOMATOWARE_SYSROOT/usr/bin:$TOMATOWARE_SYSROOT/usr/local/sbin:$TOMATOWARE
 PKG_MAIN=smartmontools
 mkdir -pv "$SRC/$PKG_MAIN" && cd "$SRC/$PKG_MAIN"
 DL="smartmontools-7.5.tar.gz"
-DL_MD5="38c38b0b82db7fc4906cdd50d15a7931"
+DL_SHA256="690b83ca331378da9ea0d9d61008c4b22dde391387b9bbad7f29387f2595f76e"
 FOLDER="${DL%.tar.gz*}"
 URL="https://github.com/smartmontools/smartmontools/releases/download/RELEASE_7_5/$DL"
 
@@ -184,14 +203,7 @@ fi || true
 if [ ! -f "$FOLDER/__package_installed" ]; then
     [ ! -f "$DL" ] && wget "$URL"
 
-    EXPECTED_MD5=$DL_MD5
-    ACTUAL_MD5=$(md5sum "$DL" | awk '{print $1}')
-    if [ "$ACTUAL_MD5" != "$EXPECTED_MD5" ]; then
-        echo "ERROR: MD5 mismatch for $DL"
-        echo "Expected: $EXPECTED_MD5"
-        echo "Actual:   $ACTUAL_MD5"
-        exit 1
-    fi
+    check_sha256 "$DL" "$DL_SHA256"
 
     [ ! -d "$FOLDER" ] && tar xzvf "$DL"
     cd "$FOLDER"
