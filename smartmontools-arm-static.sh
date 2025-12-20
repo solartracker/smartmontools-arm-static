@@ -72,6 +72,7 @@ set -x
 # Install the build environment, if it is not already installed
 
 TOMATOWARE_URL="https://github.com/lancethepants/tomatoware/releases/download/v5.0/arm-soft-mmc.tgz"
+TOMATOWARE_SHA256="ff490819a16f5ddb80ec095342ac005a444b6ebcd3ed982b8879134b2b036fcc"
 TOMATOWARE_PKG="arm-soft-mmc-5.0.tgz"
 TOMATOWARE_DIR="tomatoware-5.0"
 TOMATOWARE_PATH="$PARENT_DIR/$TOMATOWARE_DIR"
@@ -93,6 +94,16 @@ if [ ! -d "$TOMATOWARE_PATH" ]; then
         mv -fv "$PKG_TMP" "$TOMATOWARE_PKG"
         trap - EXIT INT TERM
     fi
+
+    EXPECTED_SHA256=$TOMATOWARE_SHA256
+    ACTUAL_SHA256=$(sha256sum "$TOMATOWARE_PKG" | awk '{print $1}')
+    if [ "$ACTUAL_SHA256" != "$EXPECTED_SHA256" ]; then
+        echo "ERROR: SHA256 mismatch for $TOMATOWARE_PKG"
+        echo "Expected: $EXPECTED_SHA256"
+        echo "Actual:   $ACTUAL_SHA256"
+        exit 1
+    fi
+
     DIR_TMP=$(mktemp -d "$TOMATOWARE_DIR.XXXXXX")
     trap '
         if [ -n "${DIR_TMP:-}" ]; then
@@ -158,6 +169,7 @@ PATH="$TOMATOWARE_SYSROOT/usr/bin:$TOMATOWARE_SYSROOT/usr/local/sbin:$TOMATOWARE
 PKG_MAIN=smartmontools
 mkdir -pv "$SRC/$PKG_MAIN" && cd "$SRC/$PKG_MAIN"
 DL="smartmontools-7.5.tar.gz"
+DL_MD5="38c38b0b82db7fc4906cdd50d15a7931"
 FOLDER="${DL%.tar.gz*}"
 URL="https://github.com/smartmontools/smartmontools/releases/download/RELEASE_7_5/$DL"
 
@@ -170,6 +182,16 @@ fi || true
 
 if [ ! -f "$FOLDER/__package_installed" ]; then
     [ ! -f "$DL" ] && wget "$URL"
+
+    EXPECTED_MD5=$DL_MD5
+    ACTUAL_MD5=$(md5sum "$DL" | awk '{print $1}')
+    if [ "$ACTUAL_MD5" != "$EXPECTED_MD5" ]; then
+        echo "ERROR: MD5 mismatch for $DL"
+        echo "Expected: $EXPECTED_MD5"
+        echo "Actual:   $ACTUAL_MD5"
+        exit 1
+    fi
+
     [ ! -d "$FOLDER" ] && tar xzvf "$DL"
     cd "$FOLDER"
 
