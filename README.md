@@ -19,7 +19,6 @@ Tomatoware is a modern, self-contained ARM cross-compilation toolchain. It allow
 1. **Clone this repository**
 
    ```bash
-   cd
    git clone https://github.com/solartracker/smartmontools-arm-static
    cd smartmontools-arm-static
    ```
