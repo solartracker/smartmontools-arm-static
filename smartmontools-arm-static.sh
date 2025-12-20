@@ -160,7 +160,8 @@ PKG_ROOT=smartmontools
 REBUILD_ALL=1
 SRC="$TOMATOWARE_SYSROOT/src/$PKG_ROOT"
 mkdir -pv "$SRC"
-MAKE="make -j`nproc`"
+#MAKE="make -j$(grep -c ^processor /proc/cpuinfo)" # make runs with parallelism
+MAKE="make -j1"                                    # make runs one job at a time
 PATH="$TOMATOWARE_SYSROOT/usr/bin:$TOMATOWARE_SYSROOT/usr/local/sbin:$TOMATOWARE_SYSROOT/usr/local/bin:$TOMATOWARE_SYSROOT/usr/sbin:$TOMATOWARE_SYSROOT/sbin:$TOMATOWARE_SYSROOT/bin"
 
 ################################################################################
