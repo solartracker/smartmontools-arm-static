@@ -111,11 +111,7 @@ if [ ! -d "$TOMATOWARE_PATH" ]; then
     cd $PARENT_DIR
     if [ ! -f "$TOMATOWARE_PKG" ]; then
         PKG_TMP=$(mktemp "$TOMATOWARE_PKG.XXXXXX")
-        trap '
-            if [ -n "${PKG_TMP:-}" ]; then
-                rm -fv "$PKG_TMP"
-            fi
-        ' EXIT INT TERM
+        trap '[ -n "$PKG_TMP" ] && rm -f "$PKG_TMP"' EXIT INT TERM
         wget -O "$PKG_TMP" "$TOMATOWARE_URL"
         mv -fv "$PKG_TMP" "$TOMATOWARE_PKG"
         trap - EXIT INT TERM
@@ -124,11 +120,7 @@ if [ ! -d "$TOMATOWARE_PATH" ]; then
     check_sha256 "$TOMATOWARE_PKG" "$TOMATOWARE_SHA256"
 
     DIR_TMP=$(mktemp -d "$TOMATOWARE_DIR.XXXXXX")
-    trap '
-        if [ -n "${DIR_TMP:-}" ]; then
-            rm -rfv "$DIR_TMP"
-        fi
-    ' EXIT INT TERM
+    trap '[ -n "$DIR_TMP" ] && rm -rf "$DIR_TMP"' EXIT INT TERM
     mkdir -pv "$DIR_TMP"
     tar xzvf "$TOMATOWARE_PKG" -C "$DIR_TMP"
     mv -fv "$DIR_TMP" "$TOMATOWARE_DIR"
