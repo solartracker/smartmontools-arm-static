@@ -113,7 +113,7 @@ if [ ! -d "$TOMATOWARE_PATH" ]; then
         PKG_TMP=$(mktemp "$TOMATOWARE_PKG.XXXXXX")
         trap '[ -n "$PKG_TMP" ] && rm -f "$PKG_TMP"' EXIT INT TERM
         wget -O "$PKG_TMP" "$TOMATOWARE_URL"
-        mv -fv "$PKG_TMP" "$TOMATOWARE_PKG"
+        mv -f "$PKG_TMP" "$TOMATOWARE_PKG"
         trap - EXIT INT TERM
     fi
 
@@ -121,9 +121,9 @@ if [ ! -d "$TOMATOWARE_PATH" ]; then
 
     DIR_TMP=$(mktemp -d "$TOMATOWARE_DIR.XXXXXX")
     trap '[ -n "$DIR_TMP" ] && rm -rf "$DIR_TMP"' EXIT INT TERM
-    mkdir -pv "$DIR_TMP"
+    mkdir -p "$DIR_TMP"
     tar xzvf "$TOMATOWARE_PKG" -C "$DIR_TMP"
-    mv -fv "$DIR_TMP" "$TOMATOWARE_DIR"
+    mv -f "$DIR_TMP" "$TOMATOWARE_DIR"
     trap - EXIT INT TERM
 fi
 
@@ -132,7 +132,7 @@ if [ ! -L "$TOMATOWARE_SYSROOT" ] && ! grep -q " $TOMATOWARE_SYSROOT " /proc/mou
     echo "Tomatoware $TOMATOWARE_SYSROOT is missing or is not a symbolic link."
     echo ""
     # try making a symlink
-    if ! sudo ln -sfnv "$TOMATOWARE_PATH" "$TOMATOWARE_SYSROOT"; then
+    if ! sudo ln -sfn "$TOMATOWARE_PATH" "$TOMATOWARE_SYSROOT"; then
         # otherwise, we are probably on a read-only filesystem and
         # the sysroot needs to be already baked into the firmware and
         # not in use by something else.
@@ -170,7 +170,7 @@ echo "Now running under: $(readlink /proc/$$/exe)"
 PKG_ROOT=smartmontools
 REBUILD_ALL=1
 SRC="$TOMATOWARE_SYSROOT/src/$PKG_ROOT"
-mkdir -pv "$SRC"
+mkdir -p "$SRC"
 #MAKE="make -j$(grep -c ^processor /proc/cpuinfo)" # parallelism
 MAKE="make -j1"                                    # one job at a time
 PATH="$TOMATOWARE_SYSROOT/usr/bin:$TOMATOWARE_SYSROOT/usr/local/sbin:$TOMATOWARE_SYSROOT/usr/local/bin:$TOMATOWARE_SYSROOT/usr/sbin:$TOMATOWARE_SYSROOT/sbin:$TOMATOWARE_SYSROOT/bin"
@@ -179,7 +179,7 @@ PATH="$TOMATOWARE_SYSROOT/usr/bin:$TOMATOWARE_SYSROOT/usr/local/sbin:$TOMATOWARE
 # smartmontools-7.5
 
 PKG_MAIN=smartmontools
-mkdir -pv "$SRC/$PKG_MAIN" && cd "$SRC/$PKG_MAIN"
+mkdir -p "$SRC/$PKG_MAIN" && cd "$SRC/$PKG_MAIN"
 DL="smartmontools-7.5.tar.gz"
 DL_SHA256="690b83ca331378da9ea0d9d61008c4b22dde391387b9bbad7f29387f2595f76e"
 FOLDER="${DL%.tar.gz*}"
@@ -189,7 +189,7 @@ if [ "$REBUILD_ALL" == "1" ]; then
     if [ -f "$FOLDER/Makefile" ]; then
         cd "$FOLDER" && make uninstall && cd ..
     fi || true
-    rm -rfv "$FOLDER"
+    rm -rf "$FOLDER"
 fi || true
 
 if [ ! -f "$FOLDER/__package_installed" ]; then
