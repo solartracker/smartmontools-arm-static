@@ -75,7 +75,7 @@ TOMATOWARE_URL="https://github.com/lancethepants/tomatoware/releases/download/v5
 TOMATOWARE_PKG="arm-soft-mmc-5.0.tgz"
 TOMATOWARE_DIR="tomatoware-5.0"
 TOMATOWARE_PATH="$PARENT_DIR/$TOMATOWARE_DIR"
-TOMATOWARE_SYSROOT="/mmc" # do not change this, unless you've customized and rebuilt Tomatoware from source code
+TOMATOWARE_SYSROOT="/mmc" # or, whatever your tomatoware distribution uses for sysroot
 
 # Check if Tomatoware exists and install it, if needed
 if [ ! -d "$TOMATOWARE_PATH" ]; then
