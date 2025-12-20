@@ -106,10 +106,17 @@ if [ ! -d "$TOMATOWARE_PATH" ]; then
 fi
 
 # Check if /mmc exists and is a symbolic link
-if [ ! -L "$TOMATOWARE_SYSROOT" ]; then
+if [ ! -L "$TOMATOWARE_SYSROOT" ] && ! grep -q " $TOMATOWARE_SYSROOT " /proc/mounts; then
     echo "Tomatoware $TOMATOWARE_SYSROOT is missing or is not a symbolic link."
     echo ""
-    sudo ln -sfnv "$TOMATOWARE_PATH" "$TOMATOWARE_SYSROOT"
+    # try making a symlink
+    if ! sudo ln -sfnv "$TOMATOWARE_PATH" "$TOMATOWARE_SYSROOT"; then
+        # otherwise, we are probably on a read-only filesystem and
+        # the sysroot needs to be already baked into the firmware and
+        # not in use by something else.
+        # alternatively, you can figure out another sysroot to use.
+        mount -o bind "$TOMATOWARE_PATH" "$TOMATOWARE_SYSROOT"
+    fi
 fi
 
 # Check for required Tomatoware tools
