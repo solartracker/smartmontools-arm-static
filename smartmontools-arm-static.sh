@@ -70,10 +70,6 @@ CACHED_DIR="${PARENT_DIR}/tomatoware-sources"
 set -e
 set -x
 
-# new files:       rw-r--r-- (644)
-# new directories: rwxr-xr-x (755)
-umask 022
-
 ################################################################################
 # Helpers
 
@@ -87,6 +83,10 @@ handle_configure_error() {
 
 ################################################################################
 # Package management
+
+# new files:       rw-r--r-- (644)
+# new directories: rwxr-xr-x (755)
+umask 022
 
 # Checksum verification for downloaded file
 check_sha256() {
