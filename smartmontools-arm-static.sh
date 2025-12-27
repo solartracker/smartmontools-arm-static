@@ -66,15 +66,36 @@
 PATH_CMD="$(readlink -f -- "$0")"
 SCRIPT_DIR="$(dirname -- "$(readlink -f -- "$0")")"
 PARENT_DIR="$(dirname -- "$(dirname -- "$(readlink -f -- "$0")")")"
+CACHED_DIR="${PARENT_DIR}/tomatoware-sources"
 set -e
 set -x
 
-################################################################################
-# Checksum verification for downloaded file
+# new files:       rw-r--r-- (644)
+# new directories: rwxr-xr-x (755)
+umask 022
 
+################################################################################
+# Helpers
+
+# If autoconf/configure fails due to missing libraries or undefined symbols, you
+# immediately see all undefined references without having to manually search config.log
+handle_configure_error() {
+    #grep -R --include="config.log" --color=always "undefined reference" .
+    find . -name "config.log" -exec grep -H "undefined reference" {} \;
+    return 1
+}
+
+################################################################################
+# Package management
+
+# Checksum verification for downloaded file
 check_sha256() {
-    file="$1"
-    expected="$2"
+    [ -n "$1" ] || return 1
+    [ -n "$2" ] || return 1
+
+    local file="$1"
+    local expected="$2"
+    local actual=""
 
     if [ ! -f "$file" ]; then
         echo "ERROR: File not found: $file"
@@ -94,14 +115,228 @@ check_sha256() {
     return 0
 }
 
-################################################################################
-# Install the build environment, if it is not already installed
+retry() {
+    local max=$1
+    shift
+    local i=1
+    while :; do
+        if ! "$@"; then
+            if [ "$i" -ge "$max" ]; then
+                return 1
+            fi
+            i=$((i + 1))
+            sleep 10
+        else
+            return 0
+        fi
+    done
+}
 
-TOMATOWARE_URL="https://github.com/lancethepants/tomatoware/releases/download/v5.0/arm-soft-mmc.tgz"
-TOMATOWARE_SHA256="ff490819a16f5ddb80ec095342ac005a444b6ebcd3ed982b8879134b2b036fcc"
+wget_clean() {
+    [ -n "$1" ]          || return 1
+    [ -n "$2" ]          || return 1
+    [ -n "$3" ]          || return 1
+
+    local temp_path="$1"
+    local source_url="$2"
+    local target_path="$3"
+
+    rm -f "$temp_path"
+    if ! wget -O "$temp_path" --tries=9 --retry-connrefused --waitretry=5 "$source_url"; then
+        rm -f "$temp_path"
+        return 1
+    else
+        if ! mv -f "$temp_path" "$target_path"; then
+            rm -f "$temp_path" "$target_path"
+            return 1
+        fi
+    fi
+
+    return 0
+}
+
+download() ( # BEGIN sub-shell
+    [ -n "$1" ]          || return 1
+    [ -n "$2" ]          || return 1
+    [ -n "$3" ]          || return 1
+    [ -n "$CACHED_DIR" ] || return 1
+
+    local source_url="$1"
+    local source="$2"
+    local target_dir="$3"
+    local cached_path="$CACHED_DIR/$source"
+    local target_path="$target_dir/$source"
+    local temp_path=""
+
+    if [ ! -f "$cached_path" ]; then
+        mkdir -p "$CACHED_DIR"
+        if [ ! -f "$target_path" ]; then
+            cleanup() { rm -f "$cached_path" "$temp_path"; }
+            trap 'cleanup; exit 130' INT
+            trap 'cleanup; exit 143' TERM
+            trap 'cleanup' EXIT
+            temp_path=$(mktemp "$cached_path.XXXXXX")
+            if ! retry 100 wget_clean "$temp_path" "$source_url" "$cached_path"; then
+                return 1
+            fi
+            trap - EXIT INT TERM
+        else
+            cleanup() { rm -f "$cached_path"; }
+            trap 'cleanup; exit 130' INT
+            trap 'cleanup; exit 143' TERM
+            trap 'cleanup' EXIT
+            if ! mv -f "$target_path" "$cached_path"; then
+                return 1
+            fi
+            trap - EXIT INT TERM
+        fi
+    fi
+
+    if [ ! -f "$target_path" ]; then
+        if [ -f "$cached_path" ]; then
+            ln -sfn "$cached_path" "$target_path"
+        fi
+    fi
+
+    return 0
+) # END sub-shell
+
+apply_patch() {
+    [ -n "$1" ] || return 1
+    [ -n "$2" ] || return 1
+
+    local patch_path="$1"
+    local source_dir="$2"
+
+    if [ -f "$patch_path" ]; then
+        echo "Applying patch: $patch_path"
+        if patch --dry-run --silent -p1 -d "$source_dir/" -i "$patch_path"; then
+            if ! patch -p1 -d "$source_dir/" -i "$patch_path"; then
+                echo "The patch failed."
+                return 1
+            fi
+        else
+            echo "The patch was not applied. Failed dry run."
+            return 1
+        fi
+    else
+        echo "Patch not found: $patch_path"
+        return 1
+    fi
+
+    return 0
+}
+
+apply_patches_all() {
+    [ -n "$1" ] || return 1
+    [ -n "$2" ] || return 1
+
+    local patch_dir="$1"
+    local source_dir="$2"
+    local patch_file=""
+    local rc=0
+
+    if [ -d "$patch_dir" ]; then
+        for patch_file in $patch_dir/*.patch; do
+            if [ -f "$patch_file" ]; then
+                if ! apply_patch "$patch_file" "$source_dir"; then
+                    rc=1
+                fi
+            fi
+        done
+    fi
+
+    return $rc
+}
+
+unpack_archive() {
+    [ -n "$1" ] || return 1
+    [ -n "$2" ] || return 1
+
+    local source_path="$1"
+    local target_dir="$2"
+
+    case "$source_path" in
+        *.tar.gz|*.tgz)
+            tar xzvf "$source_path" -C "$target_dir"
+            ;;
+        *.tar.bz2|*.tbz)
+            tar xjvf "$source_path" -C "$target_dir"
+            ;;
+        *.tar.xz|*.txz)
+            tar xJvf "$source_path" -C "$target_dir"
+            ;;
+        *.tar.lz|*.tlz)
+            tar xlvf "$source_path" -C "$target_dir"
+            ;;
+        *.tar)
+            tar xvf "$source_path" -C "$target_dir"
+            ;;
+        *)
+            echo "Unsupported archive type: $source_path" >&2
+            return 1
+            ;;
+    esac
+
+    return 0
+}
+
+unpack_archive_and_patch() {
+    [ -n "$1" ] || return 1
+    [ -n "$2" ] || return 1
+
+    local source_path="$1"
+    local target_dir="$2"
+    local patch_dir="$3"
+
+    if [ ! -d "$target_dir" ]; then
+        rm -rf temp
+        mkdir -p temp
+        if unpack_archive "$source_path" temp; then
+            if ! mv -f temp/* "$target_dir"; then
+                mkdir -p "$target_dir"
+                mv -f temp/* "$target_dir"
+            fi
+            rm -rf temp
+            if [ -n "$patch_dir" ]; then
+                if ! apply_patches_all "$patch_dir" "$target_dir"; then
+                    rm -rf "$target_dir"
+                    return 1
+                fi
+            fi
+        fi
+    fi
+
+    return 0
+}
+
+update_patch_library() {
+    [ -n "$PARENT_DIR" ] || return 1
+
+    ENTWARE_PACKAGES_DIR="$PARENT_DIR/entware-packages"
+    cd $PARENT_DIR
+
+    if [ ! -d "$ENTWARE_PACKAGES_DIR" ]; then
+        git clone https://github.com/Entware/entware-packages
+    else
+        cd entware-packages
+        git pull
+        cd ..
+    fi
+
+    return 0
+}
+#update_patch_library
+
+
+################################################################################
+# Install the build environment
+
+TOMATOWARE_PKG_SOURCE_URL="https://github.com/lancethepants/tomatoware/releases/download/v5.0/arm-soft-mmc.tgz"
+TOMATOWARE_PKG_HASH="ff490819a16f5ddb80ec095342ac005a444b6ebcd3ed982b8879134b2b036fcc"
 TOMATOWARE_PKG="arm-soft-mmc-5.0.tgz"
 TOMATOWARE_DIR="tomatoware-5.0"
-TOMATOWARE_PATH="$PARENT_DIR/$TOMATOWARE_DIR"
+TOMATOWARE_PATH="${PARENT_DIR}/${TOMATOWARE_DIR}"
 TOMATOWARE_SYSROOT="/mmc" # or, whatever your tomatoware distribution uses for sysroot
 
 # Check if Tomatoware exists and install it, if needed
@@ -109,20 +344,17 @@ if [ ! -d "$TOMATOWARE_PATH" ]; then
     echo "Tomatoware not found at $TOMATOWARE_PATH. Installing..."
     echo ""
     cd $PARENT_DIR
-    if [ ! -f "$TOMATOWARE_PKG" ]; then
-        PKG_TMP=$(mktemp "$TOMATOWARE_PKG.XXXXXX")
-        trap '[ -n "$PKG_TMP" ] && rm -f "$PKG_TMP"' EXIT INT TERM
-        wget -O "$PKG_TMP" "$TOMATOWARE_URL"
-        mv -f "$PKG_TMP" "$TOMATOWARE_PKG"
-        trap - EXIT INT TERM
-    fi
-
-    check_sha256 "$TOMATOWARE_PKG" "$TOMATOWARE_SHA256"
+    TOMATOWARE_PKG_PATH="$CACHED_DIR/$TOMATOWARE_PKG"
+    download "$TOMATOWARE_PKG_SOURCE_URL" "$TOMATOWARE_PKG" "$CACHED_DIR"
+    check_sha256 "$TOMATOWARE_PKG_PATH" "$TOMATOWARE_PKG_HASH"
 
     DIR_TMP=$(mktemp -d "$TOMATOWARE_DIR.XXXXXX")
-    trap '[ -n "$DIR_TMP" ] && rm -rf "$DIR_TMP"' EXIT INT TERM
+    cleanup() { rm -f "$DIR_TMP"; }
+    trap 'cleanup; exit 130' INT
+    trap 'cleanup; exit 143' TERM
+    trap 'cleanup' EXIT
     mkdir -p "$DIR_TMP"
-    tar xzvf "$TOMATOWARE_PKG" -C "$DIR_TMP"
+    tar xzvf "$TOMATOWARE_PKG_PATH" -C "$DIR_TMP"
     mv -f "$DIR_TMP" "$TOMATOWARE_DIR"
     trap - EXIT INT TERM
 fi
@@ -168,40 +400,44 @@ echo "Now running under: $(readlink /proc/$$/exe)"
 # General
 
 PKG_ROOT=smartmontools
-REBUILD_ALL=1
+REBUILD_ALL=true
 SRC="$TOMATOWARE_SYSROOT/src/$PKG_ROOT"
 mkdir -p "$SRC"
-#MAKE="make -j$(grep -c ^processor /proc/cpuinfo)" # parallelism
-MAKE="make -j1"                                    # one job at a time
-PATH="$TOMATOWARE_SYSROOT/usr/bin:$TOMATOWARE_SYSROOT/usr/local/sbin:$TOMATOWARE_SYSROOT/usr/local/bin:$TOMATOWARE_SYSROOT/usr/sbin:$TOMATOWARE_SYSROOT/sbin:$TOMATOWARE_SYSROOT/bin"
+MAKE="make -j$(grep -c ^processor /proc/cpuinfo)" # parallelism
+#MAKE="make -j1"                                  # one job at a time
+export PATH="$TOMATOWARE_SYSROOT/usr/bin:$TOMATOWARE_SYSROOT/usr/local/sbin:$TOMATOWARE_SYSROOT/usr/local/bin:$TOMATOWARE_SYSROOT/usr/sbin:$TOMATOWARE_SYSROOT/sbin:$TOMATOWARE_SYSROOT/bin"
+export PKG_CONFIG_PATH="$TOMATOWARE_SYSROOT/lib/pkgconfig"
+#export PKG_CONFIG="pkg-config --static"
 
 ################################################################################
 # smartmontools-7.5
 
-PKG_MAIN=smartmontools
-mkdir -p "$SRC/$PKG_MAIN" && cd "$SRC/$PKG_MAIN"
-DL="smartmontools-7.5.tar.gz"
-DL_SHA256="690b83ca331378da9ea0d9d61008c4b22dde391387b9bbad7f29387f2595f76e"
-FOLDER="${DL%.tar.gz*}"
-URL="https://github.com/smartmontools/smartmontools/releases/download/RELEASE_7_5/$DL"
+PKG_NAME=smartmontools
+PKG_VERSION=7.5
+PKG_SOURCE="${PKG_NAME}-${PKG_VERSION}.tar.gz"
+PKG_SOURCE_URL="https://github.com/smartmontools/smartmontools/releases/download/RELEASE_7_5/${PKG_SOURCE}"
+PKG_HASH="690b83ca331378da9ea0d9d61008c4b22dde391387b9bbad7f29387f2595f76e"
 
-if [ "$REBUILD_ALL" == "1" ]; then
+FOLDER="${PKG_NAME}-${PKG_VERSION}"
+mkdir -p "${SRC}/${PKG_NAME}" && cd "${SRC}/${PKG_NAME}"
+
+if $REBUILD_ALL; then
     if [ -f "$FOLDER/Makefile" ]; then
         cd "$FOLDER" && make uninstall && cd ..
-    fi || true
+    fi
     rm -rf "$FOLDER"
-fi || true
+fi
 
 if [ ! -f "$FOLDER/__package_installed" ]; then
-    [ ! -f "$DL" ] && wget "$URL"
-
-    check_sha256 "$DL" "$DL_SHA256"
-
-    [ ! -d "$FOLDER" ] && tar xzvf "$DL"
+    download "$PKG_SOURCE_URL" "$PKG_SOURCE" "."
+    check_sha256 "$PKG_SOURCE" "$PKG_HASH"
+    unpack_archive_and_patch "$PKG_SOURCE" "$FOLDER"
     cd "$FOLDER"
 
-    PKG_CONFIG_PATH="$TOMATOWARE_SYSROOT/lib/pkgconfig" \
-        ./configure LDFLAGS="-static" --prefix="$TOMATOWARE_SYSROOT"
+    ./configure \
+         LDFLAGS="-static" \
+         --prefix="$TOMATOWARE_SYSROOT" \
+    || handle_configure_error $?
 
     $MAKE
     make install
