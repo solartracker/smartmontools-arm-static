@@ -89,7 +89,7 @@ handle_configure_error() {
 umask 022
 
 # Checksum verification for downloaded file
-check_sha256() {
+verify_hash() {
     [ -n "$1" ] || return 1
     [ -n "$2" ] || return 1
 
@@ -206,12 +206,12 @@ apply_patch() {
     [ -n "$2" ] || return 1
 
     local patch_path="$1"
-    local source_dir="$2"
+    local target_dir="$2"
 
     if [ -f "$patch_path" ]; then
         echo "Applying patch: $patch_path"
-        if patch --dry-run --silent -p1 -d "$source_dir/" -i "$patch_path"; then
-            if ! patch -p1 -d "$source_dir/" -i "$patch_path"; then
+        if patch --dry-run --silent -p1 -d "$target_dir/" -i "$patch_path"; then
+            if ! patch -p1 -d "$target_dir/" -i "$patch_path"; then
                 echo "The patch failed."
                 return 1
             fi
@@ -227,19 +227,19 @@ apply_patch() {
     return 0
 }
 
-apply_patches_all() {
+apply_patch_folder() {
     [ -n "$1" ] || return 1
     [ -n "$2" ] || return 1
 
     local patch_dir="$1"
-    local source_dir="$2"
+    local target_dir="$2"
     local patch_file=""
     local rc=0
 
     if [ -d "$patch_dir" ]; then
         for patch_file in $patch_dir/*.patch; do
             if [ -f "$patch_file" ]; then
-                if ! apply_patch "$patch_file" "$source_dir"; then
+                if ! apply_patch "$patch_file" "$target_dir"; then
                     rc=1
                 fi
             fi
@@ -249,7 +249,48 @@ apply_patches_all() {
     return $rc
 }
 
-unpack_archive() {
+rm_safe() {
+    [ -n "$1" ] || return 1
+    local target_dir="$1"
+
+    # Prevent absolute paths
+    case "$target_dir" in
+        /*)
+            echo "Refusing to remove absolute path: $target_dir"
+            return 1
+            ;;
+    esac
+
+    # Prevent current/parent directories
+    case "$target_dir" in
+        "."|".."|*/..|*/.)
+            echo "Refusing to remove . or .. or paths containing ..: $target_dir"
+            return 1
+            ;;
+    esac
+
+    # Finally, remove safely
+    rm -rf -- "$target_dir"
+
+    return 0
+}
+
+apply_patches() {
+    [ -n "$1" ] || return 1
+    [ -n "$2" ] || return 1
+
+    local patch_dir="$1"
+    local target_dir="$2"
+
+    if ! apply_patch_folder "$patch_dir" "$target_dir"; then
+        #rm_safe "$target_dir"
+        return 1
+    fi
+
+    return 0
+}
+
+extract_package() {
     [ -n "$1" ] || return 1
     [ -n "$2" ] || return 1
 
@@ -281,29 +322,22 @@ unpack_archive() {
     return 0
 }
 
-unpack_archive_and_patch() {
+unpack_archive() {
     [ -n "$1" ] || return 1
     [ -n "$2" ] || return 1
 
     local source_path="$1"
     local target_dir="$2"
-    local patch_dir="$3"
 
     if [ ! -d "$target_dir" ]; then
         rm -rf temp
         mkdir -p temp
-        if unpack_archive "$source_path" temp; then
+        if extract_package "$source_path" temp; then
             if ! mv -f temp/* "$target_dir"; then
                 mkdir -p "$target_dir"
                 mv -f temp/* "$target_dir"
             fi
             rm -rf temp
-            if [ -n "$patch_dir" ]; then
-                if ! apply_patches_all "$patch_dir" "$target_dir"; then
-                    rm -rf "$target_dir"
-                    return 1
-                fi
-            fi
         fi
     fi
 
@@ -346,7 +380,7 @@ if [ ! -d "$TOMATOWARE_PATH" ]; then
     cd $PARENT_DIR
     TOMATOWARE_PKG_PATH="$CACHED_DIR/$TOMATOWARE_PKG"
     download "$TOMATOWARE_PKG_SOURCE_URL" "$TOMATOWARE_PKG" "$CACHED_DIR"
-    check_sha256 "$TOMATOWARE_PKG_PATH" "$TOMATOWARE_PKG_HASH"
+    verify_hash "$TOMATOWARE_PKG_PATH" "$TOMATOWARE_PKG_HASH"
 
     DIR_TMP=$(mktemp -d "$TOMATOWARE_DIR.XXXXXX")
     cleanup() { rm -f "$DIR_TMP"; }
@@ -396,6 +430,7 @@ fi
 # ---- From here down, you are running under /mmc/bin/bash ----
 echo "Now running under: $(readlink /proc/$$/exe)"
 
+
 ################################################################################
 # General
 
@@ -430,8 +465,8 @@ fi
 
 if [ ! -f "$FOLDER/__package_installed" ]; then
     download "$PKG_SOURCE_URL" "$PKG_SOURCE" "."
-    check_sha256 "$PKG_SOURCE" "$PKG_HASH"
-    unpack_archive_and_patch "$PKG_SOURCE" "$FOLDER"
+    verify_hash "$PKG_SOURCE" "$PKG_HASH"
+    unpack_archive "$PKG_SOURCE" "$FOLDER"
     cd "$FOLDER"
 
     ./configure \
