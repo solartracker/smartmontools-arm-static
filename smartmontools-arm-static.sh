@@ -451,23 +451,23 @@ PKG_NAME=smartmontools
 PKG_VERSION=7.5
 PKG_SOURCE="${PKG_NAME}-${PKG_VERSION}.tar.gz"
 PKG_SOURCE_URL="https://github.com/smartmontools/smartmontools/releases/download/RELEASE_7_5/${PKG_SOURCE}"
+PKG_SOURCE_SUBDIR="${PKG_NAME}-${PKG_VERSION}"
 PKG_HASH="690b83ca331378da9ea0d9d61008c4b22dde391387b9bbad7f29387f2595f76e"
 
-FOLDER="${PKG_NAME}-${PKG_VERSION}"
 mkdir -p "${SRC}/${PKG_NAME}" && cd "${SRC}/${PKG_NAME}"
 
 if $REBUILD_ALL; then
-    if [ -f "$FOLDER/Makefile" ]; then
-        cd "$FOLDER" && make uninstall && cd ..
+    if [ -f "$PKG_SOURCE_SUBDIR/Makefile" ]; then
+        cd "$PKG_SOURCE_SUBDIR" && make uninstall && cd ..
     fi
-    rm -rf "$FOLDER"
+    rm -rf "$PKG_SOURCE_SUBDIR"
 fi
 
-if [ ! -f "$FOLDER/__package_installed" ]; then
+if [ ! -f "$PKG_SOURCE_SUBDIR/__package_installed" ]; then
     download "$PKG_SOURCE_URL" "$PKG_SOURCE" "."
     verify_hash "$PKG_SOURCE" "$PKG_HASH"
-    unpack_archive "$PKG_SOURCE" "$FOLDER"
-    cd "$FOLDER"
+    unpack_archive "$PKG_SOURCE" "$PKG_SOURCE_SUBDIR"
+    cd "$PKG_SOURCE_SUBDIR"
 
     ./configure \
          LDFLAGS="-static" \
