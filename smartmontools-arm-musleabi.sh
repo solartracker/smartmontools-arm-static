@@ -511,9 +511,9 @@ finalize_build() {
 PKG_ROOT=smartmontools
 
 CROSSBUILD_DIR="${PARENT_DIR}/cross-arm-linux-musleabi-build"
-export PREFIX="${CROSSBUILD_DIR}"
-export PATH="${CROSSBUILD_DIR}/bin:${PATH}"
 export TARGET=arm-linux-musleabi
+export PREFIX="${CROSSBUILD_DIR}"
+export PATH="${CROSSBUILD_DIR}/bin:${CROSSBUILD_DIR}/${TARGET}/bin:${PATH}"
 export HOST=${TARGET}
 
 STAGEDIR="${CROSSBUILD_DIR}"
