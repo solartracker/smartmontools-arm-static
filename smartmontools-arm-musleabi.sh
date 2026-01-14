@@ -26,6 +26,29 @@ set -e
 set -x
 
 ################################################################################
+# General
+
+PKG_ROOT=smartmontools
+
+CROSSBUILD_DIR="${PARENT_DIR}/cross-arm-linux-musleabi-build"
+export TARGET=arm-linux-musleabi
+export PREFIX="${CROSSBUILD_DIR}"
+export PATH="${CROSSBUILD_DIR}/bin:${CROSSBUILD_DIR}/${TARGET}/bin:${PATH}"
+export HOST=${TARGET}
+
+STAGEDIR="${CROSSBUILD_DIR}"
+mkdir -p "${STAGEDIR}"
+SRC_ROOT="${CROSSBUILD_DIR}/src/${PKG_ROOT}"
+mkdir -p "${SRC_ROOT}"
+
+MAKE="make -j$(grep -c ^processor /proc/cpuinfo)" # parallelism
+#MAKE="make -j1"                                  # one job at a time
+
+export PKG_CONFIG="pkg-config"
+export PKG_CONFIG_LIBDIR="${STAGEDIR}/lib/pkgconfig"
+unset PKG_CONFIG_PATH
+
+################################################################################
 # Helpers
 
 # If autoconf/configure fails due to missing libraries or undefined symbols, you
@@ -223,7 +246,9 @@ clone_github()
             rm -rf .git
             cd ../..
             #chmod -R g-w,o-w "${temp_dir}/${source_subdir}"
-            tar --numeric-owner --owner=0 --group=0 --sort=name --mtime="${timestamp}" -cv -C "${temp_dir}" "${source_subdir}" | xz -zc -7e >"${cached_path}"
+            tar --numeric-owner --owner=0 --group=0 --sort=name --mtime="${timestamp}" \
+                -C "${temp_dir}" "${source_subdir}" \
+                -cv | xz -zc -7e -T0 >"${cached_path}"
             touch -d "${timestamp}" "${cached_path}"
             rm -rf "${temp_dir}"
             trap - EXIT INT TERM
@@ -479,6 +504,7 @@ check_static() {
 }
 
 finalize_build() {
+    set +x
     echo ""
     echo "Stripping symbols and sections from files..."
     strip -v "$@"
@@ -496,6 +522,7 @@ finalize_build() {
     for bin in "$@"; do
         mv -f "${bin}" "${bin}.static"
     done
+    set -x
 
     return 0
 }
@@ -505,28 +532,8 @@ finalize_build() {
 
 
 
-################################################################################
-# General
 
-PKG_ROOT=smartmontools
 
-CROSSBUILD_DIR="${PARENT_DIR}/cross-arm-linux-musleabi-build"
-export TARGET=arm-linux-musleabi
-export PREFIX="${CROSSBUILD_DIR}"
-export PATH="${CROSSBUILD_DIR}/bin:${CROSSBUILD_DIR}/${TARGET}/bin:${PATH}"
-export HOST=${TARGET}
-
-STAGEDIR="${CROSSBUILD_DIR}"
-mkdir -p "${STAGEDIR}"
-SRC_ROOT="${CROSSBUILD_DIR}/src/${PKG_ROOT}"
-mkdir -p "${SRC_ROOT}"
-
-MAKE="make -j$(grep -c ^processor /proc/cpuinfo)" # parallelism
-#MAKE="make -j1"                                  # one job at a time
-
-export PKG_CONFIG="pkg-config"
-export PKG_CONFIG_LIBDIR="${STAGEDIR}/lib/pkgconfig"
-unset PKG_CONFIG_PATH
 
 ################################################################################
 # smartmontools-7.5
