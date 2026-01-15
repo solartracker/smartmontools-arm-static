@@ -26,29 +26,6 @@ set -e
 set -x
 
 ################################################################################
-# General
-
-PKG_ROOT=smartmontools
-
-CROSSBUILD_DIR="${PARENT_DIR}/cross-arm-linux-musleabi-build"
-export TARGET=arm-linux-musleabi
-export PREFIX="${CROSSBUILD_DIR}"
-export PATH="${CROSSBUILD_DIR}/bin:${CROSSBUILD_DIR}/${TARGET}/bin:${PATH}"
-export HOST=${TARGET}
-
-STAGEDIR="${CROSSBUILD_DIR}"
-mkdir -p "${STAGEDIR}"
-SRC_ROOT="${CROSSBUILD_DIR}/src/${PKG_ROOT}"
-mkdir -p "${SRC_ROOT}"
-
-MAKE="make -j$(grep -c ^processor /proc/cpuinfo)" # parallelism
-#MAKE="make -j1"                                  # one job at a time
-
-export PKG_CONFIG="pkg-config"
-export PKG_CONFIG_LIBDIR="${STAGEDIR}/lib/pkgconfig"
-unset PKG_CONFIG_PATH
-
-################################################################################
 # Helpers
 
 # If autoconf/configure fails due to missing libraries or undefined symbols, you
@@ -219,6 +196,7 @@ clone_github()
     local target_dir="$5"
     local cached_path="${CACHED_DIR}/${source}"
     local target_path="${target_dir}/${source}"
+    local temp_path=""
     local temp_dir=""
     local timestamp=""
 
@@ -226,10 +204,11 @@ clone_github()
         umask 022
         mkdir -p "${CACHED_DIR}"
         if [ ! -f "${target_path}" ]; then
-            cleanup() { rm -rf "${cached_path}" "${temp_dir}"; }
+            cleanup() { rm -rf "${temp_path}" "${temp_dir}"; }
             trap 'cleanup; exit 130' INT
             trap 'cleanup; exit 143' TERM
             trap 'cleanup' EXIT
+            temp_path=$(mktemp "${cached_path}.XXXXXX")
             temp_dir=$(mktemp -d "${target_dir}/temp.XXXXXX")
             mkdir -p "${temp_dir}"
             if ! retry 100 git clone "${source_url}" "${temp_dir}/${source_subdir}"; then
@@ -246,20 +225,21 @@ clone_github()
             rm -rf .git
             cd ../..
             #chmod -R g-w,o-w "${temp_dir}/${source_subdir}"
-            tar --numeric-owner --owner=0 --group=0 --sort=name --mtime="${timestamp}" \
-                -C "${temp_dir}" "${source_subdir}" \
-                -cv | xz -zc -7e -T0 >"${cached_path}"
-            touch -d "${timestamp}" "${cached_path}"
-            rm -rf "${temp_dir}"
+            if ! tar --numeric-owner --owner=0 --group=0 --sort=name --mtime="${timestamp}" \
+                    -C "${temp_dir}" "${source_subdir}" \
+                    -cv | xz -zc -7e -T0 >"${temp_path}"; then
+                return 1
+            fi
+            touch -d "${timestamp}" "${temp_path}" || return 1
+            mv -f "${temp_path}" "${cached_path}" || return 1
+            rm -rf "${temp_dir}" || return 1
             trap - EXIT INT TERM
         else
             cleanup() { rm -f "${cached_path}"; }
             trap 'cleanup; exit 130' INT
             trap 'cleanup; exit 143' TERM
             trap 'cleanup' EXIT
-            if ! mv -f "${target_path}" "${cached_path}"; then
-                return 1
-            fi
+            mv -f "${target_path}" "${cached_path}" || return 1
             trap - EXIT INT TERM
         fi
     fi
@@ -387,22 +367,22 @@ extract_package() {
 
     case "${source_path}" in
         *.tar.gz|*.tgz)
-            tar xzvf "${source_path}" -C "${target_dir}"
+            tar xzvf "${source_path}" -C "${target_dir}" || return 1
             ;;
         *.tar.bz2|*.tbz)
-            tar xjvf "${source_path}" -C "${target_dir}"
+            tar xjvf "${source_path}" -C "${target_dir}" || return 1
             ;;
         *.tar.xz|*.txz)
-            tar xJvf "${source_path}" -C "${target_dir}"
+            tar xJvf "${source_path}" -C "${target_dir}" || return 1
             ;;
         *.tar.lz|*.tlz)
-            tar xlvf "${source_path}" -C "${target_dir}"
+            tar xlvf "${source_path}" -C "${target_dir}" || return 1
             ;;
         *.tar.zst)
-            tar xvf "${source_path}" -C "${target_dir}"
+            tar xvf "${source_path}" -C "${target_dir}" || return 1
             ;;
         *.tar)
-            tar xvf "${source_path}" -C "${target_dir}"
+            tar xvf "${source_path}" -C "${target_dir}" || return 1
             ;;
         *)
             echo "Unsupported archive type: ${source_path}" >&2
@@ -423,20 +403,24 @@ unpack_archive()
     local dir_tmp=""
 
     if [ ! -d "${target_dir}" ]; then
-        dir_tmp=$(mktemp -d "${target_dir}.XXXXXX")
-        cleanup() { rm -rf "${dir_tmp}"; }
+        cleanup() { rm -rf "${dir_tmp}" "${target_dir}"; }
         trap 'cleanup; exit 130' INT
         trap 'cleanup; exit 143' TERM
         trap 'cleanup' EXIT
+        dir_tmp=$(mktemp -d "${target_dir}.XXXXXX")
         mkdir -p "${dir_tmp}"
-        if extract_package "${source_path}" "${dir_tmp}"; then
+        if ! extract_package "${source_path}" "${dir_tmp}"; then
+            return 1
+        else
             # try to rename single sub-directory
             if ! mv -f "${dir_tmp}"/* "${target_dir}"/; then
                 # otherwise, move multiple files and sub-directories
-                mkdir -p "${target_dir}"
-                mv -f "${dir_tmp}"/* "${target_dir}"/
+                mkdir -p "${target_dir}" || return 1
+                mv -f "${dir_tmp}"/* "${target_dir}"/ || return 1
             fi
         fi
+        rm -rf "${dir_tmp}" || return 1
+        trap - EXIT INT TERM
     fi
 
     return 0
@@ -529,15 +513,84 @@ finalize_build() {
 
 ################################################################################
 # Install the build environment
+# ARM Linux musl Cross-Compiler v0.1.0
+#
+CROSSBUILD_SUBDIR="cross-arm-linux-musleabi-build"
+CROSSBUILD_DIR="${PARENT_DIR}/${CROSSBUILD_SUBDIR}"
+export TARGET=arm-linux-musleabi
+(
+HOST_CPU="$(uname -m)"
+PKG_NAME=cross-arm-linux-musleabi
+PKG_VERSION=0.1.0
+PKG_SOURCE="${PKG_NAME}-${HOST_CPU}-${PKG_VERSION}.tar.xz"
+PKG_SOURCE_URL="https://github.com/solartracker/${PKG_NAME}/releases/download/${PKG_VERSION}/${PKG_SOURCE}"
+PKG_SOURCE_SUBDIR="${PKG_NAME}-${PKG_VERSION}"
+PKG_SOURCE_PATH="${CACHED_DIR}/${PKG_SOURCE}"
+
+case "${HOST_CPU}" in
+    armv7l)
+        PKG_HASH="5c8f54f146082775cebd8d77624c4c4f3bb1b38c9a4dea01916453df029e9c48"
+        ;;
+    x86_64)
+        PKG_HASH="224113b04fd1d20ebf75f2016b2b623fb619db2bf3db0c5cba2ee8449847d9e4"
+        ;;
+    *)
+        echo "Unsupported CPU architecture: "${HOST_CPU} >&2
+        exit 1
+        ;;
+esac
+
+# Check if toolchain exists and install it, if needed
+if [ ! -d "${CROSSBUILD_DIR}" ]; then
+    echo "Toolchain not found at ${CROSSBUILD_DIR}. Installing..."
+    echo ""
+    cd ${PARENT_DIR}
+    download_archive "${PKG_SOURCE_URL}" "${PKG_SOURCE}" "${CACHED_DIR}"
+    verify_hash "${PKG_SOURCE_PATH}" "${PKG_HASH}"
+    unpack_archive "${PKG_SOURCE_PATH}" "${CROSSBUILD_DIR}"
+fi
+
+# Check for required toolchain tools
+if [ ! -x "${CROSSBUILD_DIR}/bin/${TARGET}-gcc" ]; then
+    echo "ERROR: Toolchain installation appears incomplete."
+    echo "Missing ${TARGET}-gcc in ${CROSSBUILD_DIR}/bin"
+    echo ""
+    exit 1
+fi
+if [ ! -x "${CROSSBUILD_DIR}/${TARGET}/lib/libc.so" ]; then
+    echo "ERROR: Toolchain installation appears incomplete."
+    echo "Missing libc.so in ${CROSSBUILD_DIR}/${TARGET}/lib"
+    echo ""
+    exit 1
+fi
+)
 
 
+################################################################################
+# General
 
+PKG_ROOT=smartmontools
 
+export PREFIX="${CROSSBUILD_DIR}"
+export PATH="${CROSSBUILD_DIR}/bin:${CROSSBUILD_DIR}/${TARGET}/bin:${PATH}"
+export HOST=${TARGET}
+
+STAGEDIR="${CROSSBUILD_DIR}"
+mkdir -p "${STAGEDIR}"
+SRC_ROOT="${CROSSBUILD_DIR}/src/${PKG_ROOT}"
+mkdir -p "${SRC_ROOT}"
+
+MAKE="make -j$(grep -c ^processor /proc/cpuinfo)" # parallelism
+#MAKE="make -j1"                                  # one job at a time
+
+export PKG_CONFIG="pkg-config"
+export PKG_CONFIG_LIBDIR="${STAGEDIR}/lib/pkgconfig"
+unset PKG_CONFIG_PATH
 
 
 ################################################################################
 # smartmontools-7.5
-
+(
 PKG_NAME=smartmontools
 PKG_VERSION=7.5
 PKG_SOURCE="${PKG_NAME}-${PKG_VERSION}.tar.gz"
@@ -570,4 +623,5 @@ if [ ! -f "$PKG_SOURCE_SUBDIR/__package_installed" ]; then
 
     touch __package_installed
 fi
+)
 
