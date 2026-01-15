@@ -90,6 +90,7 @@ verify_hash() {
     local option="$3"
     local actual=""
     local sign_path="$(readlink -f "${file_path}").sign"
+    local line=""
 
     if [ ! -f "${file_path}" ]; then
         echo "ERROR: File not found: ${file_path}"
@@ -120,7 +121,8 @@ verify_hash() {
             return 1
         else
             # TODO: implement signature verify
-            read expected <"${sign_path}"
+            IFS= read -r line <"${sign_path}" || exit 1
+            expected=${line%%[[:space:]]*}
             if [ -z "${expected}" ]; then
                 echo "ERROR: Bad signature file: ${sign_path}"
                 return 1
