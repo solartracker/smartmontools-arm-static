@@ -55,7 +55,7 @@ sign_file()
     [ -n "$1" ]            || return 1
 
     local target_path="$1"
-    local sign_path="${target_path}.sign"
+    local sign_path="$(readlink -f "${target_path}").sign"
     local target_file="$(basename -- "${target_path}")"
     local target_file_hash="$(sha256sum "${target_path}" | awk '{print $1}')"
     local temp_path=""
@@ -89,7 +89,7 @@ verify_hash() {
     local expected="$2"
     local option="$3"
     local actual=""
-    local sign_path="${file_path}.sign"
+    local sign_path="$(readlink -f "${file_path}").sign"
 
     if [ ! -f "${file_path}" ]; then
         echo "ERROR: File not found: ${file_path}"
