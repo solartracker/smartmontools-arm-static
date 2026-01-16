@@ -477,7 +477,7 @@ unpack_archive()
 
 get_latest_package() {
     [ "$#" -eq 3 ] || return 1
-    local pattern="${1}${2}${3}"
+    local pattern="${CACHED_DIR}${1}${2}${3}"
     local latest_file=$(ls ${pattern} 2>/dev/null | tail -n1)
     [ -n "${latest_file}" ] || return 1
     local version="${latest_file/${1}}"
