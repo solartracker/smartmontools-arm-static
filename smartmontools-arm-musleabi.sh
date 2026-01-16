@@ -477,11 +477,14 @@ unpack_archive()
 
 get_latest_package() {
     [ "$#" -eq 3 ] || return 1
-    local pattern="${CACHED_DIR}/${1}${2}${3}"
+    local pattern="${1}${2}${3}"
+    local curr_dir="${PWD}"
+    cd ${CACHED_DIR}
     local latest_file=$(ls ${pattern} 2>/dev/null | tail -n1)
+    cd "${curr_dir}"
     [ -n "${latest_file}" ] || return 1
-    local version="${latest_file/${1}}"
-    version="${version/${3}}"
+    local version="${latest_file#${1}}"
+    version="${version%${3}}"
     echo ${version}
     return 0
 }
