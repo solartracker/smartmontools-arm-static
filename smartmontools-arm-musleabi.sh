@@ -475,6 +475,17 @@ unpack_archive()
     return 0
 ) # END sub-shell
 
+get_latest_package() {
+    [ "$#" -eq 3 ] || return 1
+    local pattern="${1}${2}${3}"
+    local latest_file=$(ls ${pattern} 2>/dev/null | tail -n1)
+    [ -n "${latest_file}" ] || return 1
+    local version="${latest_file/${1}}"
+    version="${version/${3}}"
+    echo ${version}
+    return 0
+}
+
 is_version_git() {
     case "$1" in
         *+git*)
@@ -560,6 +571,7 @@ finalize_build() {
     return 0
 }
 
+
 ################################################################################
 # Install the build environment
 # ARM Linux musl Cross-Compiler v0.1.0
@@ -568,26 +580,38 @@ CROSSBUILD_SUBDIR="cross-arm-linux-musleabi-build"
 CROSSBUILD_DIR="${PARENT_DIR}/${CROSSBUILD_SUBDIR}"
 export TARGET=arm-linux-musleabi
 (
-HOST_CPU="$(uname -m)"
 PKG_NAME=cross-arm-linux-musleabi
-PKG_VERSION=0.1.0
+HOST_CPU="$(uname -m)"
+get_latest() { get_latest_package "${PKG_NAME}-${HOST_CPU}-" "??????????????" ".tar.xz"; }
+#PKG_VERSION="$(get_latest)" # this line will fail if you did not build a toolchain yourself
+PKG_VERSION=0.1.0 # this line will cause a toolchain to be downloaded from Github
 PKG_SOURCE="${PKG_NAME}-${HOST_CPU}-${PKG_VERSION}.tar.xz"
 PKG_SOURCE_URL="https://github.com/solartracker/${PKG_NAME}/releases/download/${PKG_VERSION}/${PKG_SOURCE}"
 PKG_SOURCE_SUBDIR="${PKG_NAME}-${PKG_VERSION}"
 PKG_SOURCE_PATH="${CACHED_DIR}/${PKG_SOURCE}"
 
-case "${HOST_CPU}" in
-    armv7l)
-        PKG_HASH="5c8f54f146082775cebd8d77624c4c4f3bb1b38c9a4dea01916453df029e9c48"
-        ;;
-    x86_64)
-        PKG_HASH="224113b04fd1d20ebf75f2016b2b623fb619db2bf3db0c5cba2ee8449847d9e4"
-        ;;
-    *)
-        echo "Unsupported CPU architecture: "${HOST_CPU} >&2
-        exit 1
-        ;;
-esac
+if [ $(expr length "$PKG_VERSION") -eq 14 ]; then
+    # use an archived toolchain that you built yourself. the version number is a 14 digit timestamp.
+    # Example: cross-arm-linux-musleabi-armv7l-20260115045834.tar.xz
+    PKG_HASH=""
+else
+    # alternatively, the toolchain can be downloaded from Github. note that the version
+    # number is the Github tag, instead of a 14 digit timestamp.
+    case "${HOST_CPU}" in
+        armv7l)
+            # cross-arm-linux-musleabi-armv7l-0.1.0.tar.xz
+            PKG_HASH="5c8f54f146082775cebd8d77624c4c4f3bb1b38c9a4dea01916453df029e9c48"
+            ;;
+        x86_64)
+            # cross-arm-linux-musleabi-x86_64-0.1.0.tar.xz
+            PKG_HASH="224113b04fd1d20ebf75f2016b2b623fb619db2bf3db0c5cba2ee8449847d9e4"
+            ;;
+        *)
+            echo "Unsupported CPU architecture: "${HOST_CPU} >&2
+            exit 1
+            ;;
+    esac
+fi
 
 # Check if toolchain exists and install it, if needed
 if [ ! -d "${CROSSBUILD_DIR}" ]; then
