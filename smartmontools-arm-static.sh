@@ -80,6 +80,7 @@ handle_configure_error() {
 
     #grep -R --include="config.log" --color=always "undefined reference" .
     #find . -name "config.log" -exec grep -H "undefined reference" {} \;
+    #find . -name "config.log" -exec grep -H -E "undefined reference|can't load library|unrecognized command-line option|No such file or directory" {} \;
     find . -name "config.log" -exec grep -H -E "undefined reference|can't load library|unrecognized command-line option" {} \;
 
     # Force failure if rc is zero, since error was detected
@@ -100,11 +101,29 @@ sign_file()
     [ -n "$1" ]            || return 1
 
     local target_path="$1"
+    local option="$2"
     local sign_path="$(readlink -f "${target_path}").sign"
     local target_file="$(basename -- "${target_path}")"
-    local target_file_hash="$(sha256sum "${target_path}" | awk '{print $1}')"
+    local target_file_hash=""
     local temp_path=""
-    local now_localtime="$(date '+%Y-%m-%d %H:%M:%S %Z %z')"
+    local now_localtime=""
+
+    if [ ! -f "${target_path}" ]; then
+        echo "ERROR: File not found: ${target_path}"
+        return 1
+    fi
+
+    if [ -z "${option}" ]; then
+        target_file_hash="$(sha256sum "${target_path}" | awk '{print $1}')"
+    elif [ "${option}" == "tar_extract" ]; then
+        target_file_hash="$(tar -xJOf "${target_path}" | sha256sum | awk '{print $1}')"
+    elif [ "${option}" == "xz_extract" ]; then
+        target_file_hash="$(xz -dc "${target_path}" | sha256sum | awk '{print $1}')"
+    else
+        return 1
+    fi
+
+    now_localtime="$(date '+%Y-%m-%d %H:%M:%S %Z %z')"
 
     cleanup() { rm -f "${temp_path}"; }
     trap 'cleanup; exit 130' INT
@@ -522,15 +541,29 @@ unpack_archive()
 
 get_latest_package() {
     [ "$#" -eq 3 ] || return 1
-    local pattern="${1}${2}${3}"
-    local curr_dir="${PWD}"
-    cd ${CACHED_DIR}
-    local latest_file=$(ls ${pattern} 2>/dev/null | tail -n1)
-    cd "${curr_dir}"
-    [ -n "${latest_file}" ] || return 1
-    local version="${latest_file#${1}}"
-    version="${version%${3}}"
-    echo ${version}
+
+    local prefix=$1
+    local middle=$2
+    local suffix=$3
+    local pattern=${prefix}${middle}${suffix}
+    local latest=""
+    local version=""
+
+    (
+        cd "$CACHED_DIR" || return 1
+
+        set -- $pattern
+        [ "$1" != "$pattern" ] || return 1   # no matches
+
+        latest=$1
+        for f do
+            latest=$f
+        done
+
+        version=${latest#"$prefix"}
+        version=${version%"$suffix"}
+        printf '%s\n' "$version"
+    )
     return 0
 }
 
@@ -580,10 +613,10 @@ check_static() {
     for bin in "$@"; do
         echo "Checking ${bin}"
         file "${bin}" || true
-        if readelf -d "${bin}" 2>/dev/null | grep NEEDED; then
+        if ${CROSS_PREFIX}readelf -d "${bin}" 2>/dev/null | grep NEEDED; then
             rc=1
         fi || true
-        ldd "${bin}" 2>&1 || true
+        "${LDD}" "${bin}" 2>&1 || true
     done
 
     if [ ${rc} -eq 1 ]; then
@@ -599,7 +632,7 @@ finalize_build() {
     set +x
     echo ""
     echo "Stripping symbols and sections from files..."
-    strip -v "$@"
+    ${CROSS_PREFIX}strip -v "$@"
 
     # Exit here, if the programs are not statically linked.
     # If any binaries are not static, check_static() returns 1
@@ -610,9 +643,12 @@ finalize_build() {
 
     # Append ".static" to the program names
     echo ""
-    echo "Renaming programs with .static suffix..."
+    echo "Create symbolic link with .static suffix..."
     for bin in "$@"; do
-        mv -f "${bin}" "${bin}.static"
+        case "$bin" in
+            *.static) : ;;   # do nothing
+            *) ln -sfn "$(basename "${bin}")" "${bin}.static" ;;
+        esac
     done
     set -x
 
