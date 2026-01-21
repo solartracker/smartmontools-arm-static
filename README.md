@@ -26,7 +26,7 @@ Tomatoware is a modern, self-contained ARM cross-compilation toolchain. It allow
 2. **Run the build script**
 
    ```bash
-   ./smartmontools-arm-static.sh
+   ./smartmontools-arm-tomatoware.sh
    ```
 
    This will build `smartctl` and `smartd` as **statically linked binaries** under `/mmc/sbin`. You can copy these binaries directly to your ARM target device.
