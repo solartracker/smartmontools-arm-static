@@ -752,7 +752,8 @@ PKG_SOURCE_URL="https://github.com/smartmontools/smartmontools/releases/download
 PKG_SOURCE_SUBDIR="${PKG_NAME}-${PKG_VERSION}"
 PKG_HASH="690b83ca331378da9ea0d9d61008c4b22dde391387b9bbad7f29387f2595f76e"
 
-mkdir -p "${SRC_ROOT}/${PKG_NAME}" && cd "${SRC_ROOT}/${PKG_NAME}"
+mkdir -p "${SRC_ROOT}/${PKG_NAME}"
+cd "${SRC_ROOT}/${PKG_NAME}"
 
 if [ ! -f "$PKG_SOURCE_SUBDIR/__package_installed" ]; then
     rm -rf "$PKG_SOURCE_SUBDIR"
