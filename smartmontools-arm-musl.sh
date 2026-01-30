@@ -1024,7 +1024,7 @@ fi
 
 set +x
 echo ""
-echo "[*] Finished building ${PKG_ROOT} ${PKG_ROOT_VERSION}"
+echo "[*] Finished compiling ${PKG_ROOT} ${PKG_ROOT_VERSION}"
 echo ""
 
 return 0
