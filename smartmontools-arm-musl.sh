@@ -949,7 +949,7 @@ else
             ;;
         x86_64)
             # cross-arm-linux-musleabi-x86_64-0.2.1.tar.xz
-            PKG_HASH="112a4668a4d2b1d11e1c3234be12ed5cd3b06d3abc2f23e336cd0bb677e2c844"
+            PKG_HASH="1b66015d67801aa6f73d2341d9513639140dcf593322437e17a8fe47c3c2d725"
             ;;
         *)
             echo "Unsupported CPU architecture: "${HOST_CPU} >&2
