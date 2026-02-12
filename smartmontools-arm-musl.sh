@@ -1111,8 +1111,8 @@ if [ ! -f "$PKG_SOURCE_SUBDIR/__package_installed" ]; then
 
     # strip and verify there are no dependencies for static build
     finalize_build \
-        "$CROSSBUILD_DIR/sbin/smartctl" \
-        "$CROSSBUILD_DIR/sbin/smartd"
+        "${PREFIX}/sbin/smartctl" \
+        "${PREFIX}/sbin/smartd"
 
     touch __package_installed
 fi
