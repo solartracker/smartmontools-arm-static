@@ -69,6 +69,9 @@ STAGE_DIR="${CROSSBUILD_DIR}/stage/${PKG_ROOT}"
 PACKAGER_NAME="${PKG_ROOT}_${PKG_ROOT_VERSION}-${PKG_ROOT_RELEASE}_${PKG_TARGET_CPU}${PKG_TARGET_VARIANT}"
 PACKAGER_ROOT="${CROSSBUILD_DIR}/packager/${PKG_ROOT}/${PACKAGER_NAME}"
 PACKAGER_TOPDIR="${PACKAGER_ROOT}/${PKG_ROOT}-${PKG_ROOT_VERSION}"
+PORTABLE_DIR="/tmp/portable-${PKG_ROOT}"
+SYSROOT_PORTABLE_DIR="${SYSROOT}/tmp/portable-${PKG_ROOT}"
+PREFIX_PORTABLE_DIR="${SYSROOT_PORTABLE_DIR}"
 
 MAKE="make -j$(grep -c ^processor /proc/cpuinfo)" # parallelism
 #MAKE="make -j1"                                  # one job at a time
@@ -78,8 +81,6 @@ export PKG_CONFIG_LIBDIR="${PREFIX}/lib/pkgconfig"
 unset PKG_CONFIG_PATH
 
 install_build_environment
-
-#create_cmake_toolchain_file
 
 download_and_compile
 
@@ -166,8 +167,8 @@ handle_configure_error()
 
     #grep -R --include="config.log" --color=always "undefined reference" .
     #find . -name "config.log" -exec grep -H "undefined reference" {} \;
-    find . -name "config.log" -exec grep -H -E "undefined reference|can't load library|unrecognized command-line option|No such file or directory" {} \;
-    #find . -name "config.log" -exec grep -H -E "undefined reference|can't load library|unrecognized command-line option" {} \;
+    #find . -name "config.log" -exec grep -H -E "undefined reference|can't load library|unrecognized command-line option|No such file or directory" {} \;
+    find . -name "config.log" -exec grep -H -E "undefined reference|can't load library|unrecognized command-line option" {} \;
 
     # Force failure if rc is zero, since error was detected
     [ "${rc}" -eq 0 ] && return 1
@@ -1102,6 +1103,7 @@ download_and_compile() {
 export PATH="${CROSSBUILD_DIR}/bin:${PATH}"
 mkdir -p "${SRC_ROOT}"
 #mkdir -p "${STAGE_DIR}"
+#create_cmake_toolchain_file
 
 ################################################################################
 # smartmontools-7.5
